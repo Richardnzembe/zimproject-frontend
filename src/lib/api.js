@@ -1,0 +1,123 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const ACCESS_TOKEN_KEY = "token";
+const REFRESH_TOKEN_KEY = "refreshToken";
+
+export function getApiBaseUrl() {
+  return API_BASE_URL;
+}
+
+export function getAuthToken() {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setTokens({ access, refresh }) {
+  if (access) {
+    localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  }
+  if (refresh) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+  }
+}
+
+export function clearTokens() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export function getAuthHeaders() {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function decodeJwt(token) {
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+export function getAuthUserId() {
+  const payload = decodeJwt(getAuthToken());
+  return payload?.user_id ?? null;
+}
+
+export function isTokenExpired(token, skewSeconds = 30) {
+  const payload = decodeJwt(token);
+  if (!payload?.exp) return false;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp <= now + skewSeconds;
+}
+
+export async function refreshAccessToken() {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.access) {
+      clearTokens();
+      return null;
+    }
+    setTokens({ access: data.access });
+    window.dispatchEvent(new Event("auth-changed"));
+    return data.access;
+  } catch {
+    return null;
+  }
+}
+
+export async function ensureFreshAccessToken() {
+  const access = getAuthToken();
+  if (!access) {
+    return await refreshAccessToken();
+  }
+  if (isTokenExpired(access)) {
+    return await refreshAccessToken();
+  }
+  return access;
+}
+
+export async function authFetch(url, options = {}) {
+  const access = await ensureFreshAccessToken();
+  const headers = {
+    ...(options.headers || {}),
+    ...(access ? { Authorization: `Bearer ${access}` } : {}),
+  };
+
+  const res = await fetch(url, { ...options, headers });
+  if (res.status !== 401) return res;
+
+  const refreshed = await refreshAccessToken();
+  if (!refreshed) return res;
+
+  const retryHeaders = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${refreshed}`,
+  };
+  return await fetch(url, { ...options, headers: retryHeaders });
+}
+
+export async function initializeAuth() {
+  const access = getAuthToken();
+  const refresh = getRefreshToken();
+  if (!access && refresh) {
+    await refreshAccessToken();
+    return;
+  }
+  if (access && isTokenExpired(access) && refresh) {
+    await refreshAccessToken();
+  }
+}
