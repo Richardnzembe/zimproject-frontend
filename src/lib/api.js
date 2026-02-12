@@ -1,4 +1,31 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const DEV_API_BASE_URL = "http://localhost:8000";
+const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
+
+function normalizeApiBaseUrl(url) {
+  return url.replace(/\/+$/, "");
+}
+
+function resolveApiBaseUrl() {
+  const rawUrl =
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.PROD ? PROD_API_BASE_URL : DEV_API_BASE_URL);
+
+  const normalizedUrl = normalizeApiBaseUrl(rawUrl);
+  const isHttps = normalizedUrl.startsWith("https://");
+  const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedUrl);
+
+  if (import.meta.env.PROD && !isHttps && !isLocalhost) {
+    console.warn(
+      "Security warning: production API URL should use HTTPS. Current value:",
+      normalizedUrl,
+    );
+  }
+
+  return normalizedUrl;
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 const ACCESS_TOKEN_KEY = "token";
 const REFRESH_TOKEN_KEY = "refreshToken";
 
