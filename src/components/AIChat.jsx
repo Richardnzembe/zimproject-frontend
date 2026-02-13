@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, authFetch, clearTokens } from "../lib/api";
-import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems } from "../db";
+import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
 
@@ -148,93 +148,7 @@ export default function AIChat({ onNavigate }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Handle resize
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      if (mobile) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Auth change listener
-  useEffect(() => {
-    const onAuthChange = () => setAuthToken(getAuthToken());
-    window.addEventListener("auth-changed", onAuthChange);
-    return () => window.removeEventListener("auth-changed", onAuthChange);
-  }, []);
-
-  // Load history when authenticated
-  useEffect(() => {
-    if (authToken) {
-      loadHistory();
-    } else {
-      setChatSessions([]);
-      setMessages([]);
-      setCurrentSessionId(null);
-    }
-  }, [authToken]);
-
-  // Scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Auto-resize input as content grows
-  useEffect(() => {
-    if (!inputRef.current) return;
-    inputRef.current.style.height = "auto";
-    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
-  }, [input]);
-
-  const loadHistory = async () => {
-    const userId = getAuthUserId();
-    if (!userId) return;
-
-    const cached = await getHistoryByUser(userId);
-    const sorted = cached.sort(
-      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
-    );
-
-    const sessions = {};
-    sorted.forEach((item) => {
-      const key = item?.input_data?.session_id || JSON.stringify(item.input_data);
-      if (!sessions[key]) {
-        sessions[key] = {
-          id: item?.input_data?.session_id || item.local_id || crypto.randomUUID(),
-          title: getSessionTitle(item),
-          mode: item.mode,
-          input_data: item.input_data,
-          created_at: item.created_at,
-          items: [],
-        };
-      }
-      sessions[key].items.push(item);
-    });
-
-    const sessionList = Object.values(sessions).map((session) => {
-      const items = [...session.items].sort(
-        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
-      );
-      return { ...session, items };
-    });
-    setChatSessions(sessionList);
-
-    if (sessionList.length > 0) {
-      openSession(sessionList[0]);
-    } else {
-      startNewChat();
-    }
-  };
-
-  const getSessionTitle = useCallback((item) => {
+  function getSessionTitle(item) {
     const modeType = item.mode || "general";
     const input = item.input_data || {};
 
@@ -246,9 +160,9 @@ export default function AIChat({ onNavigate }) {
       return input.note_content ? input.note_content.slice(0, 40) : "Notes Help";
     }
     return input.question || input.notes || "New Chat";
-  }, []);
+  }
 
-  const startNewChat = () => {
+  function startNewChat() {
     const newSession = {
       id: crypto.randomUUID(),
       title: "New Chat",
@@ -270,9 +184,9 @@ export default function AIChat({ onNavigate }) {
     ]);
     setCurrentSessionId(newSession.id);
     setChatSessions((prev) => [newSession, ...prev]);
-  };
+  }
 
-  const openSession = (session) => {
+  function openSession(session) {
     setCurrentSessionId(session.id);
     setMode(session.mode || "general");
     fetchShareLinks(session.id, session.input_data?.session_id || session.id);
@@ -303,7 +217,142 @@ export default function AIChat({ onNavigate }) {
     }
 
     setMessages(reconstructedMessages);
-  };
+  }
+
+  async function loadHistory({ preferRemote = false } = {}) {
+    const userId = getAuthUserId();
+    if (!userId) return;
+
+    let historyItems = await getHistoryByUser(userId);
+
+    if (preferRemote && navigator.onLine) {
+      try {
+        const res = await authFetch(`${getApiBaseUrl()}/api/ai/history/`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json().catch(() => []);
+          const serverItems = (Array.isArray(data) ? data : []).map((item) => ({
+            ...item,
+            local_id: `server-${item.id}`,
+            server_id: item.id,
+            user_id: userId,
+          }));
+          await replaceUserHistory(userId, serverItems);
+          historyItems = serverItems;
+        }
+      } catch (err) {
+        console.error("Failed to refresh history from server", err);
+      }
+    }
+
+    const sorted = historyItems.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+
+    const sessions = {};
+    sorted.forEach((item) => {
+      const key = item?.input_data?.session_id || JSON.stringify(item.input_data);
+      if (!sessions[key]) {
+        sessions[key] = {
+          id: item?.input_data?.session_id || item.local_id || crypto.randomUUID(),
+          title: getSessionTitle(item),
+          mode: item.mode,
+          input_data: item.input_data,
+          created_at: item.created_at,
+          items: [],
+        };
+      }
+      sessions[key].items.push(item);
+    });
+
+    const sessionList = Object.values(sessions).map((session) => {
+      const items = [...session.items].sort(
+        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
+      );
+      return { ...session, items };
+    });
+    setChatSessions(sessionList);
+
+    if (sessionList.length > 0) {
+      const activeSession =
+        sessionList.find((session) => session.id === currentSessionId) || sessionList[0];
+      openSession(activeSession);
+    } else {
+      startNewChat();
+    }
+  }
+
+  // Handle resize
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Auth change listener
+  useEffect(() => {
+    const onAuthChange = () => setAuthToken(getAuthToken());
+    window.addEventListener("auth-changed", onAuthChange);
+    return () => window.removeEventListener("auth-changed", onAuthChange);
+  }, []);
+
+  // Load history when authenticated
+  useEffect(() => {
+    if (authToken) {
+      loadHistory({ preferRemote: true });
+    } else {
+      setChatSessions([]);
+      setMessages([]);
+      setCurrentSessionId(null);
+    }
+  }, [authToken]);
+
+  // Refresh when tab regains focus or network returns
+  useEffect(() => {
+    if (!authToken) return undefined;
+
+    const refresh = () => {
+      loadHistory({ preferRemote: true });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [authToken, currentSessionId]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Auto-resize input as content grows
+  useEffect(() => {
+    if (!inputRef.current) return;
+    inputRef.current.style.height = "auto";
+    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
+  }, [input]);
 
   const fetchShareLinks = async (sessionId, sessionKey) => {
     const token = getAuthToken();
