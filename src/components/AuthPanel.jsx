@@ -195,7 +195,9 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       }
     } catch (err) {
       console.error(err);
-      setStatus("Reset request error");
+      const message =
+        err instanceof Error && err.message ? err.message : "Network or CORS error";
+      setStatus(`Reset request error: ${message}`);
     }
 
     setLoading(false);
