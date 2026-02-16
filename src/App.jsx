@@ -8,6 +8,7 @@ import Home from "./components/Home";
 import ThemeToggle from "./components/ThemeToggle";
 import SharedAccess from "./components/SharedAccess";
 import ShareControlPanel from "./components/ShareControlPanel";
+import NotificationCenter from "./components/NotificationCenter";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
 
@@ -70,6 +71,7 @@ function App() {
             </div>
             <div className="header-actions">
               <ThemeToggle compact />
+              <NotificationCenter onNavigate={handleNavigate} />
               <Navigation activeView={activeView} onViewChange={handleNavigate} />
             </div>
           </header>
