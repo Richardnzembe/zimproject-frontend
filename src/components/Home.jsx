@@ -86,6 +86,9 @@ const Home = ({ onNavigate }) => {
             <button className="button-primary" onClick={() => onNavigate("notes")}>
               View Notes
             </button>
+            <button className="button-secondary" onClick={() => onNavigate("tasks")}>
+              My Tasks
+            </button>
             <button className="button-secondary" onClick={() => onNavigate("ai")}>
               REE AI
             </button>

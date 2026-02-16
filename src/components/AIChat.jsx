@@ -434,6 +434,55 @@ export default function AIChat({ onNavigate }) {
     }
   };
 
+  const removeMemberFromShare = async (shareToken, userId) => {
+    if (!shareToken || !userId || !currentSessionId) return;
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/members/${userId}/`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setShareStatus(data?.detail || "Unable to remove member.");
+        return;
+      }
+      setShareInfoBySession((prev) => ({
+        ...prev,
+        [currentSessionId]: (prev[currentSessionId] || []).map((share) =>
+          share.token === shareToken
+            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+            : share
+        ),
+      }));
+      setShareStatus("Member removed.");
+      setTimeout(() => setShareStatus(""), 2500);
+    } catch {
+      setShareStatus("Unable to remove member.");
+    }
+  };
+
+  const revokeShareLink = async () => {
+    const share = currentShare;
+    if (!share?.token || !currentSessionId) return;
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${share.token}/revoke/`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setShareStatus(data?.detail || "Unable to revoke share link.");
+        return;
+      }
+      setShareInfoBySession((prev) => ({
+        ...prev,
+        [currentSessionId]: (prev[currentSessionId] || []).filter((item) => item.token !== share.token),
+      }));
+      setShareStatus("Share link revoked.");
+      setTimeout(() => setShareStatus(""), 2500);
+    } catch {
+      setShareStatus("Unable to revoke share link.");
+    }
+  };
+
   const formatInputData = (input_data) => {
     if (!input_data) return "";
     if (input_data.question) return input_data.question;
@@ -903,7 +952,7 @@ export default function AIChat({ onNavigate }) {
   const currentShare =
     shareInfoBySession[currentSessionId]?.find((s) => s.permission === "collab") ||
     shareInfoBySession[currentSessionId]?.[0];
-  const currentMembers = currentShare?.members?.map((m) => m.user?.username).filter(Boolean) || [];
+  const currentMembers = currentShare?.members || [];
 
   return (
     <div
@@ -1071,6 +1120,28 @@ export default function AIChat({ onNavigate }) {
               <span>Notes</span>
             </button>
             <button
+              onClick={() => onNavigate && onNavigate("shares")}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                padding: "12px",
+                background: "transparent",
+                border: "none",
+                borderRadius: "8px",
+                color: "#e5e5e5",
+                fontSize: "0.875rem",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
+              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <UsersIcon />
+              <span>Shares</span>
+            </button>
+            <button
               onClick={() => onNavigate && onNavigate("account")}
               style={{
                 width: "100%",
@@ -1215,13 +1286,32 @@ export default function AIChat({ onNavigate }) {
         )}
         {currentMembers.length > 0 && (
           <div style={{ padding: "0 20px 8px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
-            Collaborators: {currentMembers.join(", ")}
+            Collaborators:
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
+              {currentMembers.map((member) => (
+                <span key={member.user?.id || member.user?.username} className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  {member.user?.username}
+                  {member.user?.id && currentShare?.token && (
+                    <button
+                      className="button-secondary"
+                      onClick={() => removeMemberFromShare(currentShare.token, member.user.id)}
+                      style={{ padding: "2px 6px", fontSize: "0.75rem" }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         {currentShare?.token && (
-          <div style={{ padding: "0 20px 12px" }}>
+          <div style={{ padding: "0 20px 12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button className="theme-toggle compact" onClick={inviteUserToShare}>
               Add user
+            </button>
+            <button className="theme-toggle compact" onClick={revokeShareLink}>
+              Revoke link
             </button>
           </div>
         )}

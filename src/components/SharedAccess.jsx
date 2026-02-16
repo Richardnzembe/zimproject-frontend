@@ -155,12 +155,14 @@ export default function SharedAccess({ token, onNavigate }) {
   const [permission, setPermission] = useState("read");
   const [messages, setMessages] = useState([]);
   const [note, setNote] = useState(null);
+  const [task, setTask] = useState(null);
   const [members, setMembers] = useState([]);
   const [owner, setOwner] = useState(null);
   const [inviteId, setInviteId] = useState(null);
   const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [noteDraft, setNoteDraft] = useState(null);
+  const [taskDraft, setTaskDraft] = useState(null);
   const isAuthed = !!getAuthToken();
   const userId = getAuthUserId();
   const isOwner = owner && userId && owner.id === userId;
@@ -186,6 +188,7 @@ export default function SharedAccess({ token, onNavigate }) {
           setPermission("invite");
           setResourceType(data?.resource_type || "");
           setNote(null);
+          setTask(null);
           setMessages([]);
           setMembers([]);
           setOwner(null);
@@ -204,9 +207,14 @@ export default function SharedAccess({ token, onNavigate }) {
       setOwner(data.owner || null);
       if (data.resource_type === "chat") {
         setMessages(data.messages || []);
-      } else {
+      } else if (data.resource_type === "note") {
         setNote(data.note || null);
         setNoteDraft(data.note || null);
+        setTask(null);
+      } else {
+        setTask(data.task || null);
+        setTaskDraft(data.task || null);
+        setNote(null);
       }
     } catch (err) {
       setError("Unable to load shared content.");
@@ -287,6 +295,30 @@ export default function SharedAccess({ token, onNavigate }) {
     }
   };
 
+  const handleSaveTask = async () => {
+    if (!taskDraft || !canCollaborate) return;
+    setSaving(true);
+    setError("");
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/task/`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskDraft),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.detail || "Unable to update task.");
+        return;
+      }
+      setTask(data.task || taskDraft);
+      setTaskDraft(data.task || taskDraft);
+    } catch (err) {
+      setError("Unable to update task.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleRemoveMember = async (memberId) => {
     if (!isOwner) return;
     try {
@@ -338,7 +370,7 @@ export default function SharedAccess({ token, onNavigate }) {
             <BackIcon /> Back
           </button>
           <h1 className="panel-title" style={{ marginTop: "12px" }}>
-            {resourceType === "chat" ? "Shared Chat" : "Shared Note"}
+            {resourceType === "chat" ? "Shared Chat" : resourceType === "task" ? "Shared Task" : "Shared Note"}
           </h1>
           {owner && (
             <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
@@ -419,7 +451,7 @@ export default function SharedAccess({ token, onNavigate }) {
             </div>
           )}
         </>
-      ) : (
+      ) : resourceType === "note" ? (
         <>
           {note && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -441,6 +473,71 @@ export default function SharedAccess({ token, onNavigate }) {
               )}
               {canCollaborate && (
                 <button onClick={handleSaveNote} disabled={saving}>
+                  Save Changes
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {task && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <input
+                value={taskDraft?.title || ""}
+                onChange={(e) => setTaskDraft((prev) => ({ ...prev, title: e.target.value }))}
+                disabled={!canCollaborate}
+              />
+              <textarea
+                value={taskDraft?.description || ""}
+                onChange={(e) => setTaskDraft((prev) => ({ ...prev, description: e.target.value }))}
+                disabled={!canCollaborate}
+                rows={6}
+              />
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <select
+                  value={taskDraft?.priority || "medium"}
+                  onChange={(e) => setTaskDraft((prev) => ({ ...prev, priority: e.target.value }))}
+                  disabled={!canCollaborate}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type="checkbox"
+                    checked={!!taskDraft?.is_completed}
+                    onChange={(e) => setTaskDraft((prev) => ({ ...prev, is_completed: e.target.checked }))}
+                    disabled={!canCollaborate}
+                  />
+                  Completed
+                </label>
+                <input
+                  type="datetime-local"
+                  value={
+                    taskDraft?.due_date
+                      ? new Date(new Date(taskDraft.due_date).getTime() - new Date(taskDraft.due_date).getTimezoneOffset() * 60000)
+                          .toISOString()
+                          .slice(0, 16)
+                      : ""
+                  }
+                  onChange={(e) =>
+                    setTaskDraft((prev) => ({
+                      ...prev,
+                      due_date: e.target.value ? new Date(e.target.value).toISOString() : null,
+                    }))
+                  }
+                  disabled={!canCollaborate}
+                />
+              </div>
+              {permission === "collab" && !isAuthed && (
+                <button className="button-secondary" onClick={() => onNavigate("account")}>
+                  Login to collaborate
+                </button>
+              )}
+              {canCollaborate && (
+                <button onClick={handleSaveTask} disabled={saving}>
                   Save Changes
                 </button>
               )}

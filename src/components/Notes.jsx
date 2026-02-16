@@ -225,6 +225,50 @@ const Notes = ({ onOpenAI }) => {
     }
   };
 
+  const removeMemberFromShare = async (token, userId) => {
+    if (!token || !userId) return;
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/members/${userId}/`, {
+        method: "DELETE",
+      });
+      const data = await safeJson(res);
+      if (!res.ok) {
+        setShareStatus(data?.detail || "Unable to remove member.");
+        return;
+      }
+      setShareInfo((prev) =>
+        prev.map((share) =>
+          share.token === token
+            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+            : share
+        )
+      );
+      setShareStatus("Member removed.");
+      setTimeout(() => setShareStatus(""), 2500);
+    } catch {
+      setShareStatus("Unable to remove member.");
+    }
+  };
+
+  const revokeShareLink = async (token) => {
+    if (!token) return;
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/revoke/`, {
+        method: "POST",
+      });
+      const data = await safeJson(res);
+      if (!res.ok) {
+        setShareStatus(data?.detail || "Unable to revoke share link.");
+        return;
+      }
+      setShareInfo((prev) => prev.filter((share) => share.token !== token));
+      setShareStatus("Share link revoked.");
+      setTimeout(() => setShareStatus(""), 2500);
+    } catch {
+      setShareStatus("Unable to revoke share link.");
+    }
+  };
+
   const syncPendingNotes = async () => {
     if (!navigator.onLine) return;
     const userId = getAuthUserId();
@@ -547,8 +591,7 @@ const Notes = ({ onOpenAI }) => {
   const uniqueSubjects = [...new Set(notes.map((note) => note.subject).filter(Boolean))].sort();
   const currentShare =
     shareInfo.find((s) => s.permission === "collab") || shareInfo[0];
-  const currentMembers =
-    currentShare?.members?.map((m) => m.user?.username).filter(Boolean) || [];
+  const currentMembers = currentShare?.members || [];
 
   return (
     <div className="card">
@@ -803,7 +846,23 @@ const Notes = ({ onOpenAI }) => {
             )}
             {currentMembers.length > 0 && (
               <div style={{ padding: "0 24px 12px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
-                Collaborators: {currentMembers.join(", ")}
+                Collaborators:
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px" }}>
+                  {currentMembers.map((member) => (
+                    <span key={member.user?.id || member.user?.username} className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      {member.user?.username}
+                      {member.user?.id && (
+                        <button
+                          className="button-secondary"
+                          onClick={() => removeMemberFromShare(currentShare?.token, member.user.id)}
+                          style={{ padding: "2px 6px", fontSize: "0.75rem" }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             
@@ -936,6 +995,14 @@ const Notes = ({ onOpenAI }) => {
                   onClick={() => inviteUserToShare(currentShare.token)}
                 >
                   Add user
+                </button>
+              )}
+              {currentShare?.token && (
+                <button
+                  className="button-danger"
+                  onClick={() => revokeShareLink(currentShare.token)}
+                >
+                  Revoke link
                 </button>
               )}
               <button 

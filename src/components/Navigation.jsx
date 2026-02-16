@@ -59,10 +59,22 @@ export default function Navigation({ activeView, onViewChange }) {
           Notes
         </button>
         <button
+          className={`nav-pill ${activeView === "tasks" ? "active" : ""}`}
+          onClick={() => onViewChange("tasks")}
+        >
+          Tasks
+        </button>
+        <button
           className={`nav-pill nav-primary ${activeView === "ai" ? "active" : ""}`}
           onClick={() => onViewChange("ai")}
         >
           REE AI
+        </button>
+        <button
+          className={`nav-pill ${activeView === "shares" ? "active" : ""}`}
+          onClick={() => onViewChange("shares")}
+        >
+          Shares
         </button>
         <div className="nav-account">
           <button

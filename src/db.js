@@ -1,7 +1,7 @@
 import { openDB } from "idb";
 
 const DB_NAME = "zimproject-db";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const initDB = async () => {
   const db = await openDB(DB_NAME, DB_VERSION, {
@@ -12,6 +12,14 @@ export const initDB = async () => {
 
       if (!db.objectStoreNames.contains("notes")) {
         const store = db.createObjectStore("notes", { keyPath: "local_id" });
+        store.createIndex("user_id", "user_id");
+        store.createIndex("server_id", "server_id");
+        store.createIndex("client_id", "client_id");
+        store.createIndex("sync_status", "sync_status");
+      }
+
+      if (!db.objectStoreNames.contains("tasks")) {
+        const store = db.createObjectStore("tasks", { keyPath: "local_id" });
         store.createIndex("user_id", "user_id");
         store.createIndex("server_id", "server_id");
         store.createIndex("client_id", "client_id");
@@ -85,6 +93,40 @@ export const getNoteByClientId = async (clientId) => {
 export const getHistoryByUser = async (userId) => {
   const db = await initDB();
   return await db.getAllFromIndex("ai_history", "user_id", userId);
+};
+
+export const getTasksByUser = async (userId) => {
+  const db = await initDB();
+  return await db.getAllFromIndex("tasks", "user_id", userId);
+};
+
+export const replaceUserTasks = async (userId, tasks) => {
+  const db = await initDB();
+  const tx = db.transaction("tasks", "readwrite");
+  const index = tx.store.index("user_id");
+  let cursor = await index.openCursor(userId);
+  while (cursor) {
+    await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  for (const task of tasks) {
+    await tx.store.put(task);
+  }
+  await tx.done;
+};
+
+export const upsertTasks = async (tasks) => {
+  const db = await initDB();
+  const tx = db.transaction("tasks", "readwrite");
+  for (const task of tasks) {
+    await tx.store.put(task);
+  }
+  await tx.done;
+};
+
+export const deleteLocalTask = async (localId) => {
+  const db = await initDB();
+  await db.delete("tasks", localId);
 };
 
 export const replaceUserHistory = async (userId, items) => {

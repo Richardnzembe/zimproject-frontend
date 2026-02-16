@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import Notes from "./components/Notes";
+import Tasks from "./components/Tasks";
 import AIChat from "./components/AIChat";
 import AuthPanel from "./components/AuthPanel";
 import Navigation from "./components/Navigation";
 import Home from "./components/Home";
 import ThemeToggle from "./components/ThemeToggle";
 import SharedAccess from "./components/SharedAccess";
+import ShareControlPanel from "./components/ShareControlPanel";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
 
@@ -94,6 +96,14 @@ function App() {
 
             {activeView === "notes" && (
               <Notes onOpenAI={() => handleNavigate("ai")} />
+            )}
+
+            {activeView === "tasks" && (
+              <Tasks />
+            )}
+
+            {activeView === "shares" && (
+              <ShareControlPanel />
             )}
           </main>
         </>
