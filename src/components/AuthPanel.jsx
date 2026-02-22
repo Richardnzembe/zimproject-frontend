@@ -94,6 +94,12 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   }, [accountOptionsTrigger, token]);
 
   const handleLogin = async () => {
+    const safeUsername = username.trim();
+    const safePassword = password;
+    if (!safeUsername || !safePassword) {
+      setStatus("Username and password are required.");
+      return;
+    }
     setLoading(true);
     setStatus("");
 
@@ -101,7 +107,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: safeUsername, password: safePassword }),
       });
 
       const data = await safeJson(res);
@@ -123,12 +129,18 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   };
 
   const handleRegister = async () => {
+    const safeUsername = username.trim();
+    const safeEmail = email.trim();
     if (password !== confirmPassword) {
       setStatus("Passwords do not match");
       return;
     }
-    if (!email.trim()) {
+    if (!safeEmail) {
       setStatus("Email is required for password recovery.");
+      return;
+    }
+    if (!safeUsername) {
+      setStatus("Username is required.");
       return;
     }
 
@@ -140,8 +152,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
-          email,
+          username: safeUsername,
+          email: safeEmail,
           password,
           password_confirm: confirmPassword,
         }),

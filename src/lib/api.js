@@ -96,12 +96,15 @@ export async function refreshAccessToken() {
     const data = await res.json().catch(() => null);
     if (!res.ok || !data?.access) {
       clearTokens();
+      window.dispatchEvent(new Event("auth-changed"));
       return null;
     }
     setTokens({ access: data.access });
     window.dispatchEvent(new Event("auth-changed"));
     return data.access;
   } catch {
+    clearTokens();
+    window.dispatchEvent(new Event("auth-changed"));
     return null;
   }
 }
