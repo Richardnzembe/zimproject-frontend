@@ -2312,6 +2312,58 @@ textarea {
   transition: background var(--transition-fast), color var(--transition-fast), border var(--transition-fast);
 }
 
+.nav-menu-button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--muted-button-bg);
+  border: 1px solid var(--muted-button-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border var(--transition-fast);
+}
+
+.nav-menu-button:hover {
+  background: var(--muted-button-bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 16px;
+  min-width: 240px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+  z-index: 100;
+}
+
+.nav-menu-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.nav-menu .nav-bar {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.nav-menu .nav-pill {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .nav-toggle-button:hover {
   background: var(--muted-button-bg-hover);
   color: var(--text-primary);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Notes from "./components/Notes";
 import Tasks from "./components/Tasks";
 import AIChat from "./components/AIChat";
@@ -18,17 +18,22 @@ function App() {
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
-  const [navCollapsed, setNavCollapsed] = useState(false);
-
-  useEffect(() => {
-    const shouldCollapse = window.innerWidth <= 640;
-    if (shouldCollapse) {
-      setNavCollapsed(true);
-    }
-  }, []);
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const navMenuRef = useRef(null);
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    const onClickOutside = (event) => {
+      if (!navMenuRef.current) return;
+      if (!navMenuRef.current.contains(event.target)) {
+        setNavMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
   useEffect(() => {
@@ -73,55 +78,39 @@ function App() {
         <SharedAccess token={shareToken} onNavigate={handleNavigate} />
       ) : (
         <>
-          {!navCollapsed ? (
-            <header className="app-nav">
-              <div className="nav-left">
-                <button
-                  className="nav-toggle-button"
-                  type="button"
-                  onClick={() => setNavCollapsed(true)}
-                  aria-label="Collapse navigation"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                  </svg>
-                </button>
-                <div className="brand-block">
-                  <div className="brand-title">REE Study Helper</div>
-                  <div className="brand-subtitle">Your AI-powered study companion for better learning</div>
-                </div>
-              </div>
-              <div className="nav-actions">
-                <ThemeToggle compact />
-                <NotificationCenter onNavigate={handleNavigate} />
-                <Navigation activeView={activeView} onViewChange={handleNavigate} />
-              </div>
-            </header>
-          ) : (
-            <div className="nav-toggle-bar">
-              <div className="nav-left">
-                <button
-                  className="nav-toggle-button"
-                  type="button"
-                  onClick={() => setNavCollapsed(false)}
-                  aria-label="Expand navigation"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                  </svg>
-                </button>
-                <div className="brand-block brand-compact">
-                  <div className="brand-title">REE Study Helper</div>
-                </div>
-              </div>
-              <div className="nav-actions">
-                <ThemeToggle compact />
-                <NotificationCenter onNavigate={handleNavigate} />
+          <div className="nav-toggle-bar" ref={navMenuRef}>
+            <div className="nav-left">
+              <div className="brand-block brand-compact">
+                <div className="brand-title">REE Study Helper</div>
               </div>
             </div>
-          )}
+            <div className="nav-actions">
+              <button
+                className="nav-menu-button"
+                type="button"
+                onClick={() => setNavMenuOpen((prev) => !prev)}
+                aria-label="Open navigation menu"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+                  <circle cx="12" cy="5" r="2"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
+                  <circle cx="12" cy="19" r="2"></circle>
+                </svg>
+              </button>
+              {navMenuOpen && (
+                <div className="nav-menu">
+                  <div className="nav-menu-actions">
+                    <ThemeToggle compact />
+                    <NotificationCenter onNavigate={handleNavigate} />
+                  </div>
+                  <Navigation activeView={activeView} onViewChange={(view, options) => {
+                    handleNavigate(view, options);
+                    setNavMenuOpen(false);
+                  }} />
+                </div>
+              )}
+            </div>
+          </div>
 
           <main className="app-main">
             {activeView === "home" && (
