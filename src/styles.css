@@ -193,6 +193,8 @@ small {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .theme-toggle {
@@ -2209,6 +2211,11 @@ textarea {
     align-items: flex-start;
   }
 
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .nav-bar {
     width: 100%;
     justify-content: flex-start;
@@ -2230,5 +2237,14 @@ textarea {
 
   .hero-title {
     font-size: 2rem;
+  }
+
+  .nav-account {
+    width: 100%;
+  }
+
+  .nav-dropdown {
+    left: 0;
+    right: auto;
   }
 }
