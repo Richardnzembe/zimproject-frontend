@@ -76,6 +76,12 @@ export default function Navigation({ activeView, onViewChange }) {
         >
           Shares
         </button>
+        <button
+          className={`nav-pill ${activeView === "notifications" ? "active" : ""}`}
+          onClick={() => onViewChange("notifications")}
+        >
+          Notifications
+        </button>
         <div className="nav-account">
           <button
             className={`nav-pill ${activeView === "account" ? "active" : ""}`}
