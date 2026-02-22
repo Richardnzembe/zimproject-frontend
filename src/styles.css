@@ -189,6 +189,12 @@ small {
   z-index: 40;
 }
 
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .nav-actions {
   display: flex;
   align-items: center;
@@ -226,12 +232,20 @@ small {
   gap: 6px;
 }
 
+.brand-block.brand-compact {
+  gap: 2px;
+}
+
 .brand-title {
   font-family: var(--font-display);
   font-size: 1.7rem;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+}
+
+.brand-block.brand-compact .brand-title {
+  font-size: 1.1rem;
 }
 
 .brand-subtitle {
@@ -2280,9 +2294,25 @@ textarea {
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(8px);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .nav-toggle-button {
-  white-space: nowrap;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--muted-button-bg);
+  border: 1px solid var(--muted-button-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border var(--transition-fast);
+}
+
+.nav-toggle-button:hover {
+  background: var(--muted-button-bg-hover);
+  color: var(--text-primary);
 }

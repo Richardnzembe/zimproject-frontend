@@ -75,32 +75,51 @@ function App() {
         <>
           {!navCollapsed ? (
             <header className="app-nav">
-              <div className="brand-block">
-                <div className="brand-title">REE Study Helper</div>
-                <div className="brand-subtitle">Your AI-powered study companion for better learning</div>
+              <div className="nav-left">
+                <button
+                  className="nav-toggle-button"
+                  type="button"
+                  onClick={() => setNavCollapsed(true)}
+                  aria-label="Collapse navigation"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
+                <div className="brand-block">
+                  <div className="brand-title">REE Study Helper</div>
+                  <div className="brand-subtitle">Your AI-powered study companion for better learning</div>
+                </div>
               </div>
               <div className="nav-actions">
                 <ThemeToggle compact />
                 <NotificationCenter onNavigate={handleNavigate} />
                 <Navigation activeView={activeView} onViewChange={handleNavigate} />
-                <button
-                  className="button-secondary nav-toggle-button"
-                  type="button"
-                  onClick={() => setNavCollapsed(true)}
-                >
-                  Hide nav
-                </button>
               </div>
             </header>
           ) : (
             <div className="nav-toggle-bar">
-              <button
-                className="button-secondary"
-                type="button"
-                onClick={() => setNavCollapsed(false)}
-              >
-                Show navigation
-              </button>
+              <div className="nav-left">
+                <button
+                  className="nav-toggle-button"
+                  type="button"
+                  onClick={() => setNavCollapsed(false)}
+                  aria-label="Expand navigation"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                  </svg>
+                </button>
+                <div className="brand-block brand-compact">
+                  <div className="brand-title">REE Study Helper</div>
+                </div>
+              </div>
+              <div className="nav-actions">
+                <ThemeToggle compact />
+                <NotificationCenter onNavigate={handleNavigate} />
+              </div>
             </div>
           )}
 
