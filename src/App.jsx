@@ -18,7 +18,7 @@ function App() {
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
 
   useEffect(() => {
     initializeAuth();
@@ -66,33 +66,33 @@ function App() {
         <SharedAccess token={shareToken} onNavigate={handleNavigate} />
       ) : (
         <>
-          {!headerCollapsed ? (
-            <header className="app-header">
+          {!navCollapsed ? (
+            <header className="app-nav">
               <div className="brand-block">
                 <div className="brand-title">REE Study Helper</div>
                 <div className="brand-subtitle">Your AI-powered study companion for better learning</div>
               </div>
-              <div className="header-actions">
+              <div className="nav-actions">
                 <ThemeToggle compact />
                 <NotificationCenter onNavigate={handleNavigate} />
                 <Navigation activeView={activeView} onViewChange={handleNavigate} />
                 <button
-                  className="button-secondary header-toggle-button"
+                  className="button-secondary nav-toggle-button"
                   type="button"
-                  onClick={() => setHeaderCollapsed(true)}
+                  onClick={() => setNavCollapsed(true)}
                 >
-                  Hide header
+                  Hide nav
                 </button>
               </div>
             </header>
           ) : (
-            <div className="header-toggle-bar">
+            <div className="nav-toggle-bar">
               <button
                 className="button-secondary"
                 type="button"
-                onClick={() => setHeaderCollapsed(false)}
+                onClick={() => setNavCollapsed(false)}
               >
-                Show header
+                Show navigation
               </button>
             </div>
           )}
