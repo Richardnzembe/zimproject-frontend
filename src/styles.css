@@ -432,6 +432,7 @@ small {
   top: calc(100% + 10px);
   right: 0;
   width: min(420px, 88vw);
+  max-width: calc(100vw - 24px);
   max-height: 70vh;
   overflow: hidden;
   display: grid;
@@ -2247,4 +2248,27 @@ textarea {
     left: 0;
     right: auto;
   }
+
+  .notify-panel {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(420px, 92vw);
+  }
+}
+
+.header-toggle-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  padding: 12px 16px;
+  background: var(--surface-glass);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.header-toggle-button {
+  white-space: nowrap;
 }
