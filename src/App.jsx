@@ -21,6 +21,13 @@ function App() {
   const [navCollapsed, setNavCollapsed] = useState(false);
 
   useEffect(() => {
+    const shouldCollapse = window.innerWidth <= 640;
+    if (shouldCollapse) {
+      setNavCollapsed(true);
+    }
+  }, []);
+
+  useEffect(() => {
     initializeAuth();
   }, []);
 
