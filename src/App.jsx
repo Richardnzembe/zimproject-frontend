@@ -9,6 +9,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import SharedAccess from "./components/SharedAccess";
 import ShareControlPanel from "./components/ShareControlPanel";
 import NotificationCenter from "./components/NotificationCenter";
+import NotificationsPage from "./components/NotificationsPage";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
 
@@ -126,6 +127,10 @@ function App() {
 
             {activeView === "shares" && (
               <ShareControlPanel />
+            )}
+
+            {activeView === "notifications" && (
+              <NotificationsPage onNavigate={handleNavigate} />
             )}
           </main>
         </>
