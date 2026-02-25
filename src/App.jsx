@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Notes from "./components/Notes";
 import Tasks from "./components/Tasks";
 import AIChat from "./components/AIChat";
@@ -19,46 +19,9 @@ function App() {
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
-  const [navMenuOpen, setNavMenuOpen] = useState(false);
-  const [isDesktopNav, setIsDesktopNav] = useState(false);
-  const navMenuRef = useRef(null);
 
   useEffect(() => {
     initializeAuth();
-  }, []);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 1024px)");
-    const updateNavMode = (event) => {
-      const desktop = event.matches;
-      setIsDesktopNav(desktop);
-      setNavMenuOpen(desktop);
-    };
-
-    updateNavMode(mediaQuery);
-    mediaQuery.addEventListener("change", updateNavMode);
-    return () => mediaQuery.removeEventListener("change", updateNavMode);
-  }, []);
-
-  useEffect(() => {
-    const onClickOutside = (event) => {
-      if (isDesktopNav || !navMenuOpen || !navMenuRef.current) return;
-      if (!navMenuRef.current.contains(event.target)) {
-        setNavMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [isDesktopNav, navMenuOpen]);
-
-  useEffect(() => {
-    const onEscape = (event) => {
-      if (event.key === "Escape" && !isDesktopNav) {
-        setNavMenuOpen(false);
-      }
-    };
-    document.addEventListener("keydown", onEscape);
-    return () => document.removeEventListener("keydown", onEscape);
   }, []);
 
   useEffect(() => {
@@ -89,9 +52,6 @@ function App() {
 
   const handleNavigate = (view, options = {}) => {
     setActiveView(view);
-    if (!isDesktopNav) {
-      setNavMenuOpen(false);
-    }
     if (view === "account" && options.openAccountOptions) {
       setAccountOptionsTrigger((prev) => prev + 1);
     }
@@ -99,51 +59,27 @@ function App() {
   };
 
   return (
-    <div className={`app-shell ${isDesktopNav ? "has-desktop-nav" : ""}`}>
+    <div className="app-shell">
       {activeView === "ai" ? (
         <AIChat onNavigate={handleNavigate} />
       ) : activeView === "share" && shareToken ? (
         <SharedAccess token={shareToken} onNavigate={handleNavigate} />
       ) : (
         <>
-          <div className="nav-layout">
-            {!isDesktopNav && navMenuOpen && (
-              <button
-                className="nav-overlay"
-                aria-label="Close navigation menu"
-                type="button"
-                onClick={() => setNavMenuOpen(false)}
-              />
-            )}
-            <div className="nav-toggle-bar">
-              <div className="nav-left">
-                <button
-                  className={`nav-menu-button ${navMenuOpen ? "open" : ""}`}
-                  type="button"
-                  onClick={() => setNavMenuOpen((prev) => !prev)}
-                  aria-label={navMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                  aria-expanded={navMenuOpen}
-                >
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </button>
-                <div className="brand-block brand-compact">
-                  <div className="brand-title">Notex</div>
-                </div>
+          <header className="app-topbar">
+            <div className="topbar-main">
+              <div className="brand-block brand-compact">
+                <div className="brand-title">Notex</div>
               </div>
-            </div>
-            <div
-              ref={navMenuRef}
-              className={`nav-sidebar ${navMenuOpen ? "open" : ""} ${isDesktopNav ? "desktop" : "mobile"}`}
-            >
-              <div className="nav-menu-actions">
-                <ThemeToggle compact />
+              <div className="topbar-actions">
+                <ThemeToggle compact iconOnly />
                 <NotificationCenter onNavigate={handleNavigate} />
               </div>
+            </div>
+            <div className="topbar-nav-wrap">
               <Navigation activeView={activeView} onViewChange={handleNavigate} />
             </div>
-          </div>
+          </header>
 
           <main className="app-main">
             {activeView === "home" && (

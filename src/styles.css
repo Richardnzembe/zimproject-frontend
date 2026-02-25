@@ -2395,6 +2395,124 @@ textarea {
   color: var(--text-primary);
 }
 
+/* ===== Top Navigation Layout ===== */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: var(--surface-glass);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+  padding: 10px 16px 8px;
+}
+
+.topbar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-actions .notify-button {
+  min-height: 38px;
+  border-radius: 10px;
+}
+
+.topbar-nav-wrap {
+  margin-top: 8px;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.top-nav-link {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  min-height: 32px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.top-nav-link:hover {
+  background: var(--background-color);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.top-nav-link.active {
+  color: var(--primary-color);
+  background: var(--primary-light);
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+}
+
+.top-nav-link.primary {
+  font-weight: 700;
+}
+
+.top-nav-account {
+  position: relative;
+  margin-left: auto;
+}
+
+.top-nav-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 10px;
+  z-index: 120;
+}
+
+.top-nav-dropdown .button-secondary {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.top-nav-userhint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .app-topbar {
+    padding: 10px 10px 8px;
+  }
+
+  .topbar-main .brand-title {
+    font-size: 1rem;
+  }
+
+  .topbar-actions .notify-button {
+    padding: 7px 10px;
+    font-size: 0.75rem;
+  }
+}
+
 /* ===== Sidebar Navigation Refresh ===== */
 .nav-layout {
   position: relative;
