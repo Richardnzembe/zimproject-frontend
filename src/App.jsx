@@ -19,6 +19,7 @@ function App() {
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const [isDesktopNav, setIsDesktopNav] = useState(false);
   const navMenuRef = useRef(null);
 
   useEffect(() => {
@@ -26,14 +27,37 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateNavMode = (event) => {
+      const desktop = event.matches;
+      setIsDesktopNav(desktop);
+      setNavMenuOpen(desktop);
+    };
+
+    updateNavMode(mediaQuery);
+    mediaQuery.addEventListener("change", updateNavMode);
+    return () => mediaQuery.removeEventListener("change", updateNavMode);
+  }, []);
+
+  useEffect(() => {
     const onClickOutside = (event) => {
-      if (!navMenuRef.current) return;
+      if (isDesktopNav || !navMenuOpen || !navMenuRef.current) return;
       if (!navMenuRef.current.contains(event.target)) {
         setNavMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [isDesktopNav, navMenuOpen]);
+
+  useEffect(() => {
+    const onEscape = (event) => {
+      if (event.key === "Escape" && !isDesktopNav) {
+        setNavMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
   }, []);
 
   useEffect(() => {
@@ -64,6 +88,9 @@ function App() {
 
   const handleNavigate = (view, options = {}) => {
     setActiveView(view);
+    if (!isDesktopNav) {
+      setNavMenuOpen(false);
+    }
     if (view === "account" && options.openAccountOptions) {
       setAccountOptionsTrigger((prev) => prev + 1);
     }
@@ -71,44 +98,49 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isDesktopNav ? "has-desktop-nav" : ""}`}>
       {activeView === "ai" ? (
         <AIChat onNavigate={handleNavigate} />
       ) : activeView === "share" && shareToken ? (
         <SharedAccess token={shareToken} onNavigate={handleNavigate} />
       ) : (
         <>
-          <div className="nav-toggle-bar" ref={navMenuRef}>
-            <div className="nav-left">
-              <div className="brand-block brand-compact">
-                <div className="brand-title">REE Study Helper</div>
+          <div className="nav-layout">
+            {!isDesktopNav && navMenuOpen && (
+              <button
+                className="nav-overlay"
+                aria-label="Close navigation menu"
+                type="button"
+                onClick={() => setNavMenuOpen(false)}
+              />
+            )}
+            <div className="nav-toggle-bar">
+              <div className="nav-left">
+                <button
+                  className={`nav-menu-button ${navMenuOpen ? "open" : ""}`}
+                  type="button"
+                  onClick={() => setNavMenuOpen((prev) => !prev)}
+                  aria-label={navMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                  aria-expanded={navMenuOpen}
+                >
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </button>
+                <div className="brand-block brand-compact">
+                  <div className="brand-title">REE Study Helper</div>
+                </div>
               </div>
             </div>
-            <div className="nav-actions">
-              <button
-                className="nav-menu-button"
-                type="button"
-                onClick={() => setNavMenuOpen((prev) => !prev)}
-                aria-label="Open navigation menu"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-                  <circle cx="12" cy="5" r="2"></circle>
-                  <circle cx="12" cy="12" r="2"></circle>
-                  <circle cx="12" cy="19" r="2"></circle>
-                </svg>
-              </button>
-              {navMenuOpen && (
-                <div className="nav-menu">
-                  <div className="nav-menu-actions">
-                    <ThemeToggle compact />
-                    <NotificationCenter onNavigate={handleNavigate} />
-                  </div>
-                  <Navigation activeView={activeView} onViewChange={(view, options) => {
-                    handleNavigate(view, options);
-                    setNavMenuOpen(false);
-                  }} />
-                </div>
-              )}
+            <div
+              ref={navMenuRef}
+              className={`nav-sidebar ${navMenuOpen ? "open" : ""} ${isDesktopNav ? "desktop" : "mobile"}`}
+            >
+              <div className="nav-menu-actions">
+                <ThemeToggle compact />
+                <NotificationCenter onNavigate={handleNavigate} />
+              </div>
+              <Navigation activeView={activeView} onViewChange={handleNavigate} />
             </div>
           </div>
 
