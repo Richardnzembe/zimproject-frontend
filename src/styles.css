@@ -1868,6 +1868,21 @@ textarea {
   color: var(--text-muted);
 }
 
+.project-mode-strip {
+  max-width: 768px;
+  margin: 8px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.project-mode-strip .mode-picker-sub-btn {
+  padding: 6px 12px;
+}
+
 .mode-dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);

@@ -149,6 +149,7 @@ export default function AIChat({ onNavigate }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const headerMenuRef = useRef(null);
+  const modeMenuRef = useRef(null);
 
   function getSessionTitle(item) {
     const modeType = item.mode || "general";
@@ -300,6 +301,28 @@ export default function AIChat({ onNavigate }) {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const closeModeMenuOnOutsideClick = (event) => {
+      if (!modeMenuRef.current) return;
+      if (!modeMenuRef.current.contains(event.target)) {
+        setModeMenuOpen(false);
+      }
+    };
+
+    const closeModeMenuOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setModeMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeModeMenuOnOutsideClick);
+    document.addEventListener("keydown", closeModeMenuOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeModeMenuOnOutsideClick);
+      document.removeEventListener("keydown", closeModeMenuOnEscape);
+    };
   }, []);
 
   useEffect(() => {
@@ -824,7 +847,7 @@ export default function AIChat({ onNavigate }) {
       case "study":
         return "Get help with study materials";
       case "project":
-        return "Work on a project";
+        return `Work on a project (${projectMode === "guided" ? "Guided" : "Fast"})`;
       default:
         return "";
     }
@@ -1561,12 +1584,12 @@ export default function AIChat({ onNavigate }) {
             zIndex: 10,
           }}
         >
-          <div className="mode-dropdown">
+          <div className="mode-dropdown" ref={modeMenuRef}>
             <button
               className="mode-dropdown-btn"
               onClick={() => setModeMenuOpen((prev) => !prev)}
             >
-              Mode: {mode === "general" ? "General" : mode === "study" ? "Study" : "Project"}
+              Mode: {mode === "general" ? "General" : mode === "study" ? "Study" : `Project (${projectMode === "guided" ? "Guided" : "Fast"})`}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -1602,6 +1625,25 @@ export default function AIChat({ onNavigate }) {
               </div>
             )}
           </div>
+          {mode === "project" && (
+            <div className="project-mode-strip">
+              <span>Project mode:</span>
+              <button
+                className={`mode-picker-sub-btn ${projectMode === "guided" ? "active" : ""}`}
+                onClick={() => setProjectMode("guided")}
+                type="button"
+              >
+                Guided
+              </button>
+              <button
+                className={`mode-picker-sub-btn ${projectMode === "fast" ? "active" : ""}`}
+                onClick={() => setProjectMode("fast")}
+                type="button"
+              >
+                Fast
+              </button>
+            </div>
+          )}
           <div style={{ maxWidth: "768px", margin: "0 auto", position: "relative" }}>
             <textarea
               ref={inputRef}
