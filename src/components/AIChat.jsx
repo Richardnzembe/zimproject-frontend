@@ -1609,7 +1609,7 @@ export default function AIChat({ onNavigate }) {
             </button>
             <span className="mode-dropdown-desc">{getModeDescription()}</span>
             {modeMenuOpen && (
-              <div className="mode-dropdown-menu">
+              <div className="mode-dropdown-menu mode-main-menu">
                 <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
                   General
                 </button>
