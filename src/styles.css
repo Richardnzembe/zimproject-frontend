@@ -2570,3 +2570,34 @@ textarea {
     padding-top: 74px;
   }
 }
+
+/* ===== Cookie Banner ===== */
+.cookie-banner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(420px, calc(100vw - 24px));
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 14px;
+  z-index: 220;
+}
+
+.cookie-banner p {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.cookie-banner-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.cookie-banner-actions button {
+  min-height: 36px;
+}

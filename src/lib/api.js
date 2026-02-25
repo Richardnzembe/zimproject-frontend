@@ -1,3 +1,5 @@
+import { getCookie, removeCookie, setCookie } from "./cookies";
+
 const DEV_API_BASE_URL = "http://localhost:8000";
 const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
 
@@ -28,31 +30,37 @@ function resolveApiBaseUrl() {
 const API_BASE_URL = resolveApiBaseUrl();
 const ACCESS_TOKEN_KEY = "token";
 const REFRESH_TOKEN_KEY = "refreshToken";
+const ACCESS_TOKEN_COOKIE = "smart_notes_access";
+const REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
 
 export function getAuthToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  return localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_COOKIE);
 }
 
 export function getRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  return localStorage.getItem(REFRESH_TOKEN_KEY) || getCookie(REFRESH_TOKEN_COOKIE);
 }
 
 export function setTokens({ access, refresh }) {
   if (access) {
     localStorage.setItem(ACCESS_TOKEN_KEY, access);
+    setCookie(ACCESS_TOKEN_COOKIE, access, { days: 1, sameSite: "Lax" });
   }
   if (refresh) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+    setCookie(REFRESH_TOKEN_COOKIE, refresh, { days: 14, sameSite: "Lax" });
   }
 }
 
 export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  removeCookie(ACCESS_TOKEN_COOKIE);
+  removeCookie(REFRESH_TOKEN_COOKIE);
 }
 
 export function getAuthHeaders() {
@@ -90,6 +98,7 @@ export async function refreshAccessToken() {
   try {
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh }),
     });
@@ -127,7 +136,7 @@ export async function authFetch(url, options = {}) {
     ...(access ? { Authorization: `Bearer ${access}` } : {}),
   };
 
-  const res = await fetch(url, { ...options, headers });
+  const res = await fetch(url, { ...options, headers, credentials: options.credentials || "include" });
   if (res.status !== 401) return res;
 
   const refreshed = await refreshAccessToken();
@@ -137,7 +146,7 @@ export async function authFetch(url, options = {}) {
     ...(options.headers || {}),
     Authorization: `Bearer ${refreshed}`,
   };
-  return await fetch(url, { ...options, headers: retryHeaders });
+  return await fetch(url, { ...options, headers: retryHeaders, credentials: options.credentials || "include" });
 }
 
 export async function initializeAuth() {

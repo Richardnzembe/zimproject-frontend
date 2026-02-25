@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from "react";
+import { getCookie, setCookie, removeCookie } from "../lib/cookies";
+
+const THEME_KEY = "theme-mode";
+const THEME_COOKIE = "smart_notes_theme";
 
 const getInitialTheme = () => {
-  const saved = localStorage.getItem("theme-mode");
+  const saved = localStorage.getItem(THEME_KEY) || getCookie(THEME_COOKIE);
   return saved || "system";
 };
 
 const applyTheme = (mode) => {
   if (mode === "system") {
     document.documentElement.removeAttribute("data-theme");
-    localStorage.removeItem("theme-mode");
+    localStorage.removeItem(THEME_KEY);
+    removeCookie(THEME_COOKIE);
     return;
   }
   document.documentElement.setAttribute("data-theme", mode);
-  localStorage.setItem("theme-mode", mode);
+  localStorage.setItem(THEME_KEY, mode);
+  setCookie(THEME_COOKIE, mode, { days: 180, sameSite: "Lax" });
 };
 
 export default function ThemeToggle({ compact = false, iconOnly = false }) {

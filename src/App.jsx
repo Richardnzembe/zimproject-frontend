@@ -10,6 +10,7 @@ import SharedAccess from "./components/SharedAccess";
 import ShareControlPanel from "./components/ShareControlPanel";
 import NotificationCenter from "./components/NotificationCenter";
 import NotificationsPage from "./components/NotificationsPage";
+import CookieBanner from "./components/CookieBanner";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
 
@@ -182,6 +183,7 @@ function App() {
           </main>
         </>
       )}
+      <CookieBanner />
     </div>
   );
 }
