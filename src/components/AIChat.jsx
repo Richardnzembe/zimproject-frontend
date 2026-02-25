@@ -178,7 +178,7 @@ export default function AIChat({ onNavigate }) {
       {
         id: "welcome",
         role: "assistant",
-        content: "Hello! I'm REE AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
+        content: "Hello! I'm Smart Notes AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -211,7 +211,7 @@ export default function AIChat({ onNavigate }) {
       reconstructedMessages.push({
         id: "welcome",
         role: "assistant",
-        content: "Hello! I'm REE AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
+        content: "Hello! I'm Smart Notes AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
         timestamp: new Date().toISOString(),
       });
     }
@@ -985,7 +985,7 @@ export default function AIChat({ onNavigate }) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
             </svg>
-            <span>REE AI</span>
+            <span>Smart Notes AI</span>
           </div>
           <button className="sidebar-new-chat" onClick={startNewChat}>
             <PlusIcon />
@@ -1255,7 +1255,7 @@ export default function AIChat({ onNavigate }) {
             {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
           </button>
           <h1 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
-            {chatSessions.find((s) => s.id === currentSessionId)?.title || "REE AI"}
+            {chatSessions.find((s) => s.id === currentSessionId)?.title || "Smart Notes AI"}
           </h1>
           <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
             <ThemeToggle compact />
@@ -1405,7 +1405,7 @@ export default function AIChat({ onNavigate }) {
               </div>
               <div style={{ flex: 1, paddingTop: "2px" }}>
                 <div style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "8px", color: "#1a1a1a" }}>
-                  {message.role === "user" ? "You" : "REE AI"}
+                  {message.role === "user" ? "You" : "Smart Notes AI"}
                 </div>
                 <div className="chat-message-text">
                   {message.role === "assistant"
@@ -1572,7 +1572,7 @@ export default function AIChat({ onNavigate }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask REE AI..."
+              placeholder="Ask Smart Notes AI..."
               rows={1}
             />
             <button
@@ -1602,7 +1602,7 @@ export default function AIChat({ onNavigate }) {
             <ImageToText onExtract={insertExtractedText} />
           </div>
           <div style={{ textAlign: "center", marginTop: "12px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            REE AI can make mistakes. Consider checking important information.
+            Smart Notes AI can make mistakes. Consider checking important information.
           </div>
         </div>
       </main>
@@ -1617,4 +1617,5 @@ export default function AIChat({ onNavigate }) {
     </div>
   );
 }
+
 

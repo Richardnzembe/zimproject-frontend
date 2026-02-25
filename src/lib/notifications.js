@@ -37,7 +37,7 @@ const toIso = (value) => {
 };
 
 function keyFor(scope, suffix) {
-  return `ree-notify-${scope}-${suffix}`;
+  return `smart-notify-${scope}-${suffix}`;
 }
 
 export function useNotificationFeed() {
@@ -279,3 +279,4 @@ export function useNotificationFeed() {
     markRead,
   };
 }
+

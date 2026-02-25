@@ -128,7 +128,7 @@ function App() {
                   <span></span>
                 </button>
                 <div className="brand-block brand-compact">
-                  <div className="brand-title">REE Study Helper</div>
+                  <div className="brand-title">Smart Notes</div>
                 </div>
               </div>
             </div>
@@ -187,3 +187,4 @@ function App() {
 }
 
 export default App;
+

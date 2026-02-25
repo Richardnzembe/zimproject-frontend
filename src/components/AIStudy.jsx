@@ -79,7 +79,7 @@ const AIStudy = () => {
 
   return (
     <div className="card">
-      <h2>REE AI Helper</h2>
+      <h2>Smart Notes AI</h2>
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         <label>
@@ -151,3 +151,4 @@ const AIStudy = () => {
 };
 
 export default AIStudy;
+

@@ -77,7 +77,7 @@ const Home = ({ onNavigate }) => {
       <section className="hero-card">
         <div className="hero-content">
           <p className="hero-eyebrow">Welcome back</p>
-          <h1 className="hero-title">Study smarter with REE Study Helper</h1>
+          <h1 className="hero-title">Study smarter with Smart Notes</h1>
           <p className="hero-subtitle">
             Your intelligent companion for academic success. Organize notes,
             collaborate with AI, and boost your learning experience.
@@ -90,7 +90,7 @@ const Home = ({ onNavigate }) => {
               My Tasks
             </button>
             <button className="button-secondary" onClick={() => onNavigate("ai")}>
-              REE AI
+              Smart Notes AI
             </button>
           </div>
           <div className="hero-metrics">
@@ -151,8 +151,8 @@ const Home = ({ onNavigate }) => {
               <path d="M8 12h8"></path>
             </svg>
           </div>
-          <h3>REE AI Assistant</h3>
-          <p>Get instant help with homework, coding, and complex reasoning from REE AI.</p>
+          <h3>Smart Notes AI Assistant</h3>
+          <p>Get instant help with homework, coding, and complex reasoning from Smart Notes AI.</p>
         </div>
         <div className="feature-card">
           <div className="feature-icon warning">
@@ -170,3 +170,4 @@ const Home = ({ onNavigate }) => {
 };
 
 export default Home;
+

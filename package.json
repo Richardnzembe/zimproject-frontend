@@ -1,5 +1,5 @@
 {
-  "name": "zimproject-frontend",
+  "name": "smart-notes-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -34,3 +34,4 @@
     "vite-plugin-pwa": "^1.2.0"
   }
 }
+

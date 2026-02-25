@@ -1,6 +1,6 @@
 import { openDB } from "idb";
 
-const DB_NAME = "zimproject-db";
+const DB_NAME = "smart-notes-db";
 const DB_VERSION = 3;
 
 export const initDB = async () => {
@@ -164,3 +164,4 @@ export const deleteHistoryItems = async (localIds) => {
   }
   await tx.done;
 };
+
