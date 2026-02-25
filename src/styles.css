@@ -222,6 +222,20 @@ small {
   font-size: 0.75rem;
 }
 
+.theme-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle.icon-only {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 10px;
+}
+
 .theme-toggle:hover {
   background: var(--muted-button-bg-hover);
 }
@@ -2457,6 +2471,11 @@ textarea {
   width: 100%;
   justify-content: flex-start;
   border-radius: 10px;
+}
+
+.nav-menu-actions .theme-toggle.icon-only {
+  width: 42px;
+  justify-content: center;
 }
 
 .nav-menu-actions .notify-root {

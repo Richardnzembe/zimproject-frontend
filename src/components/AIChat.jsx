@@ -143,10 +143,12 @@ export default function AIChat({ onNavigate }) {
   const [renameSessionId, setRenameSessionId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const headerMenuRef = useRef(null);
 
   function getSessionTitle(item) {
     const modeType = item.mode || "general";
@@ -298,6 +300,28 @@ export default function AIChat({ onNavigate }) {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (!headerMenuRef.current) return;
+      if (!headerMenuRef.current.contains(event.target)) {
+        setHeaderMenuOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setHeaderMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, []);
 
   // Auth change listener
@@ -1257,25 +1281,52 @@ export default function AIChat({ onNavigate }) {
           <h1 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
             {chatSessions.find((s) => s.id === currentSessionId)?.title || "Smart Notes AI"}
           </h1>
-          <div style={{ marginLeft: "auto", display: "flex", gap: "10px", alignItems: "center" }}>
-            <ThemeToggle compact />
-            {!isNewChat && (
-              <>
+          <div ref={headerMenuRef} style={{ marginLeft: "auto", position: "relative" }}>
+            <button
+              className="theme-toggle compact"
+              onClick={() => setHeaderMenuOpen((prev) => !prev)}
+              aria-expanded={headerMenuOpen}
+              aria-label="Open header actions"
+              type="button"
+            >
+              Menu
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            {headerMenuOpen && (
+              <div
+                className="mode-dropdown-menu"
+                style={{
+                  right: 0,
+                  left: "auto",
+                  top: "calc(100% + 8px)",
+                  minWidth: "210px",
+                  zIndex: 120,
+                }}
+              >
+                <ThemeToggle compact />
                 <button
-                  className="theme-toggle compact"
-                  onClick={() => createShareLink("read", currentSessionId)}
+                  onClick={() => {
+                    createShareLink("read", currentSessionId);
+                    setHeaderMenuOpen(false);
+                  }}
+                  disabled={isNewChat}
                   title="Share read-only link"
                 >
                   Share
                 </button>
                 <button
-                  className="theme-toggle compact"
-                  onClick={() => createShareLink("collab", currentSessionId)}
+                  onClick={() => {
+                    createShareLink("collab", currentSessionId);
+                    setHeaderMenuOpen(false);
+                  }}
+                  disabled={isNewChat}
                   title="Create collaboration link"
                 >
                   Collaborate
                 </button>
-              </>
+              </div>
             )}
           </div>
         </header>
