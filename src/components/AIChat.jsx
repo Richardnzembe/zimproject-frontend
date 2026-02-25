@@ -1317,31 +1317,32 @@ export default function AIChat({ onNavigate }) {
           <h1 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
             {chatSessions.find((s) => s.id === currentSessionId)?.title || "Notex AI"}
           </h1>
-          <div ref={headerMenuRef} style={{ marginLeft: "auto", position: "relative" }}>
-            <button
-              className="theme-toggle compact"
-              onClick={() => setHeaderMenuOpen((prev) => !prev)}
-              aria-expanded={headerMenuOpen}
-              aria-label="Open header actions"
-              type="button"
-            >
-              Menu
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-            {headerMenuOpen && (
-              <div
-                className="mode-dropdown-menu"
-                style={{
-                  right: 0,
-                  left: "auto",
-                  top: "calc(100% + 8px)",
-                  minWidth: "210px",
-                  zIndex: 120,
-                }}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+            <ThemeToggle compact iconOnly />
+            <div ref={headerMenuRef} style={{ position: "relative" }}>
+              <button
+                className="theme-toggle compact"
+                onClick={() => setHeaderMenuOpen((prev) => !prev)}
+                aria-expanded={headerMenuOpen}
+                aria-label="Open header actions"
+                type="button"
               >
-                <ThemeToggle compact />
+                Menu
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              {headerMenuOpen && (
+                <div
+                  className="mode-dropdown-menu"
+                  style={{
+                    right: 0,
+                    left: "auto",
+                    top: "calc(100% + 8px)",
+                    minWidth: "210px",
+                    zIndex: 120,
+                  }}
+                >
                 <button
                   onClick={() => {
                     createShareLink("read", currentSessionId);
@@ -1362,8 +1363,9 @@ export default function AIChat({ onNavigate }) {
                 >
                   Collaborate
                 </button>
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </header>
         {shareStatus && (

@@ -1,65 +1,44 @@
 import React, { useEffect, useState } from "react";
-import { getCookie, setCookie, removeCookie } from "../lib/cookies";
+import { getCookie, setCookie } from "../lib/cookies";
 
 const THEME_KEY = "theme-mode";
 const THEME_COOKIE = "smart_notes_theme";
 
 const getInitialTheme = () => {
   const saved = localStorage.getItem(THEME_KEY) || getCookie(THEME_COOKIE);
-  return saved || "system";
+  if (saved === "dark" || saved === "light") return saved;
+  if (typeof window !== "undefined") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return "light";
 };
 
 const applyTheme = (mode) => {
-  if (mode === "system") {
-    document.documentElement.removeAttribute("data-theme");
-    localStorage.removeItem(THEME_KEY);
-    removeCookie(THEME_COOKIE);
-    return;
-  }
   document.documentElement.setAttribute("data-theme", mode);
   localStorage.setItem(THEME_KEY, mode);
   setCookie(THEME_COOKIE, mode, { days: 180, sameSite: "Lax" });
 };
 
-export default function ThemeToggle({ compact = false, iconOnly = false }) {
+export default function ThemeToggle({ compact = false, iconOnly = true }) {
   const [themeMode, setThemeMode] = useState(getInitialTheme);
-  const [systemDark, setSystemDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
 
   useEffect(() => {
     applyTheme(themeMode);
   }, [themeMode]);
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = (event) => {
-      setSystemDark(event.matches);
-    };
-    setSystemDark(mediaQuery.matches);
-    mediaQuery.addEventListener("change", onChange);
-    return () => mediaQuery.removeEventListener("change", onChange);
-  }, []);
-
-  const cycleTheme = () => {
-    setThemeMode((prev) => {
-      if (prev === "system") return "light";
-      if (prev === "light") return "dark";
-      return "system";
-    });
+  const toggleTheme = () => {
+    setThemeMode((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
-  const resolvedTheme = themeMode === "system" ? (systemDark ? "dark" : "light") : themeMode;
-  const label = `Theme: ${themeMode.charAt(0).toUpperCase()}${themeMode.slice(1)}`;
-  const isDarkIcon = resolvedTheme === "dark";
+  const isDarkIcon = themeMode === "dark";
+  const actionLabel = isDarkIcon ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <button
       className={`theme-toggle ${compact ? "compact" : ""} ${iconOnly ? "icon-only" : ""}`}
-      onClick={cycleTheme}
-      title={`${label} (click to cycle)`}
-      aria-label={`${label} (click to cycle)`}
+      onClick={toggleTheme}
+      title={actionLabel}
+      aria-label={actionLabel}
       type="button"
     >
       <span className="theme-toggle-icon" aria-hidden="true">
@@ -74,7 +53,7 @@ export default function ThemeToggle({ compact = false, iconOnly = false }) {
           </svg>
         )}
       </span>
-      {!iconOnly && <span className="theme-toggle-label">{label}</span>}
+      {!iconOnly && <span className="theme-toggle-label">{isDarkIcon ? "Dark mode" : "Light mode"}</span>}
     </button>
   );
 }
