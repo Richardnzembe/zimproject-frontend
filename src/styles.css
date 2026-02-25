@@ -1868,21 +1868,6 @@ textarea {
   color: var(--text-muted);
 }
 
-.project-mode-strip {
-  max-width: 768px;
-  margin: 8px auto 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.project-mode-strip .mode-picker-sub-btn {
-  padding: 6px 12px;
-}
-
 .mode-dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -1930,6 +1915,10 @@ textarea {
   background: var(--primary-color);
   color: white;
   border-color: var(--primary-color);
+}
+
+.mode-dropdown-sub button:not(.active) {
+  background: color-mix(in srgb, var(--surface-color) 65%, var(--primary-light));
 }
 
 /* ===== AI Mode Picker ===== */
@@ -2486,11 +2475,7 @@ textarea {
   width: 100%;
   justify-content: flex-start;
   border-radius: 10px;
-}
-
-.nav-menu-actions .theme-toggle.icon-only {
-  width: 42px;
-  justify-content: center;
+  min-height: 42px;
 }
 
 .nav-menu-actions .notify-root {
@@ -2518,6 +2503,7 @@ textarea {
   border-radius: 10px;
   padding: 10px 12px;
   font-weight: 600;
+  min-height: 42px;
 }
 
 .nav-account.nav-account-sidebar {

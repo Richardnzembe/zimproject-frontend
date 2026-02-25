@@ -137,7 +137,7 @@ function App() {
               className={`nav-sidebar ${navMenuOpen ? "open" : ""} ${isDesktopNav ? "desktop" : "mobile"}`}
             >
               <div className="nav-menu-actions">
-                <ThemeToggle compact iconOnly />
+                <ThemeToggle compact />
                 <NotificationCenter onNavigate={handleNavigate} />
               </div>
               <Navigation activeView={activeView} onViewChange={handleNavigate} />

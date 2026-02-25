@@ -143,6 +143,7 @@ export default function AIChat({ onNavigate }) {
   const [renameSessionId, setRenameSessionId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [projectOptionsOpen, setProjectOptionsOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
@@ -308,12 +309,14 @@ export default function AIChat({ onNavigate }) {
       if (!modeMenuRef.current) return;
       if (!modeMenuRef.current.contains(event.target)) {
         setModeMenuOpen(false);
+        setProjectOptionsOpen(false);
       }
     };
 
     const closeModeMenuOnEscape = (event) => {
       if (event.key === "Escape") {
         setModeMenuOpen(false);
+        setProjectOptionsOpen(false);
       }
     };
 
@@ -324,6 +327,16 @@ export default function AIChat({ onNavigate }) {
       document.removeEventListener("keydown", closeModeMenuOnEscape);
     };
   }, []);
+
+  useEffect(() => {
+    if (!modeMenuOpen) {
+      setProjectOptionsOpen(false);
+      return;
+    }
+    if (mode === "project") {
+      setProjectOptionsOpen(true);
+    }
+  }, [modeMenuOpen, mode]);
 
   useEffect(() => {
     const closeOnOutsideClick = (event) => {
@@ -1603,47 +1616,52 @@ export default function AIChat({ onNavigate }) {
                 <button onClick={() => { setMode("study"); setModeMenuOpen(false); }}>
                   Study
                 </button>
-                <button onClick={() => { setMode("project"); }}>
+                <button
+                  onClick={() => {
+                    setMode("project");
+                    setProjectOptionsOpen((prev) => !prev);
+                  }}
+                >
                   Project
                 </button>
-                {mode === "project" && (
+                {projectOptionsOpen && (
                   <div className="mode-dropdown-sub">
                     <button
                       className={projectMode === "guided" ? "active" : ""}
-                      onClick={() => { setProjectMode("guided"); setModeMenuOpen(false); }}
+                      onClick={() => {
+                        setMode("project");
+                        setProjectMode("guided");
+                        setModeMenuOpen(false);
+                        setProjectOptionsOpen(false);
+                      }}
                     >
                       Guided
                     </button>
                     <button
                       className={projectMode === "fast" ? "active" : ""}
-                      onClick={() => { setProjectMode("fast"); setModeMenuOpen(false); }}
+                      onClick={() => {
+                        setMode("project");
+                        setProjectMode("fast");
+                        setModeMenuOpen(false);
+                        setProjectOptionsOpen(false);
+                      }}
                     >
                       Fast
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMode("general");
+                        setModeMenuOpen(false);
+                        setProjectOptionsOpen(false);
+                      }}
+                    >
+                      General
                     </button>
                   </div>
                 )}
               </div>
             )}
           </div>
-          {mode === "project" && (
-            <div className="project-mode-strip">
-              <span>Project mode:</span>
-              <button
-                className={`mode-picker-sub-btn ${projectMode === "guided" ? "active" : ""}`}
-                onClick={() => setProjectMode("guided")}
-                type="button"
-              >
-                Guided
-              </button>
-              <button
-                className={`mode-picker-sub-btn ${projectMode === "fast" ? "active" : ""}`}
-                onClick={() => setProjectMode("fast")}
-                type="button"
-              >
-                Fast
-              </button>
-            </div>
-          )}
           <div style={{ maxWidth: "768px", margin: "0 auto", position: "relative" }}>
             <textarea
               ref={inputRef}
