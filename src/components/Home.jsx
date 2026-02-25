@@ -77,7 +77,7 @@ const Home = ({ onNavigate }) => {
       <section className="hero-card">
         <div className="hero-content">
           <p className="hero-eyebrow">Welcome back</p>
-          <h1 className="hero-title">Study smarter with Smart Notes</h1>
+          <h1 className="hero-title">Study smarter with Notex</h1>
           <p className="hero-subtitle">
             Your intelligent companion for academic success. Organize notes,
             collaborate with AI, and boost your learning experience.
@@ -90,7 +90,7 @@ const Home = ({ onNavigate }) => {
               My Tasks
             </button>
             <button className="button-secondary" onClick={() => onNavigate("ai")}>
-              Smart Notes AI
+              Notex AI
             </button>
           </div>
           <div className="hero-metrics">
@@ -140,7 +140,7 @@ const Home = ({ onNavigate }) => {
               <line x1="16" y1="17" x2="8" y2="17"></line>
             </svg>
           </div>
-          <h3>Smart Notes</h3>
+          <h3>Notex</h3>
           <p>Organize your study materials with categories, priorities, and advanced search.</p>
         </div>
         <div className="feature-card">
@@ -151,8 +151,8 @@ const Home = ({ onNavigate }) => {
               <path d="M8 12h8"></path>
             </svg>
           </div>
-          <h3>Smart Notes AI Assistant</h3>
-          <p>Get instant help with homework, coding, and complex reasoning from Smart Notes AI.</p>
+          <h3>Notex AI Assistant</h3>
+          <p>Get instant help with homework, coding, and complex reasoning from Notex AI.</p>
         </div>
         <div className="feature-card">
           <div className="feature-icon warning">
@@ -170,4 +170,5 @@ const Home = ({ onNavigate }) => {
 };
 
 export default Home;
+
 

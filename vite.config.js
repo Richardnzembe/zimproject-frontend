@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       devOptions: { enabled: true },
       manifest: {
-        name: 'Smart Notes',
-        short_name: 'Smart Notes',
-        description: 'Smart Notes helps you manage notes, tasks, and AI study workflows.',
+        name: 'Notex',
+        short_name: 'Notex',
+        description: 'Notex helps you manage notes, tasks, and AI study workflows.',
         start_url: '/',
         display: 'standalone',
         background_color: '#f5f3ee',
@@ -24,3 +24,4 @@ export default defineConfig({
     })
   ]
 });
+

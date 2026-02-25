@@ -155,7 +155,7 @@ export default function ShareControlPanel() {
         <div className="empty-state">
           <div className="empty-state-icon">Shares</div>
           <h3 className="empty-state-title">No share links found</h3>
-          <p className="empty-state-text">Create share links from Notes, Tasks, or Smart Notes AI and manage them here.</p>
+          <p className="empty-state-text">Create share links from Notes, Tasks, or Notex AI and manage them here.</p>
         </div>
       ) : (
         <div className="notes-list">
@@ -230,5 +230,6 @@ export default function ShareControlPanel() {
     </div>
   );
 }
+
 
 

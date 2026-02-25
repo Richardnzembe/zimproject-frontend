@@ -419,7 +419,7 @@ export default function SharedAccess({ token, onNavigate }) {
                 </div>
                 <div className="chat-message-content">
                   <div className="chat-message-role">
-                    {msg.role === "user" ? msg.username || "User" : "Smart Notes AI"}
+                    {msg.role === "user" ? msg.username || "User" : "Notex AI"}
                   </div>
                   <div className="chat-message-text">
                     {msg.role === "assistant" ? renderMessageContent(msg.content || "") : msg.content}
@@ -548,4 +548,5 @@ export default function SharedAccess({ token, onNavigate }) {
     </div>
   );
 }
+
 

@@ -1,5 +1,5 @@
 {
-  "name": "smart-notes-frontend",
+  "name": "notex-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -34,4 +34,5 @@
     "vite-plugin-pwa": "^1.2.0"
   }
 }
+
 

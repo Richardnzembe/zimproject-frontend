@@ -1,9 +1,9 @@
-README USER GUIDE - Smart Notes
+README USER GUIDE - Notex
 =====================================
 
 Overview
 --------
-Smart Notes is a study productivity web app with notes, tasks, sharing, notifications, and an AI assistant (Smart Notes AI). It helps you organize study material, track deadlines, and collaborate.
+Notex is a study productivity web app with notes, tasks, sharing, notifications, and an AI assistant (Notex AI). It helps you organize study material, track deadlines, and collaborate.
 
 Getting Started
 --------------
@@ -17,7 +17,7 @@ Open the sidebar menu to access:
 - Home
 - Notes
 - Tasks
-- Smart Notes AI
+- Notex AI
 - Shares
 - Notifications
 - Account
@@ -40,7 +40,7 @@ Tasks
 - Track progress and mark tasks complete.
 - Share tasks with collaborators using share links.
 
-Smart Notes AI (AI Assistant)
+Notex AI (AI Assistant)
 ---------------------
 - Ask questions, summarize, or get explanations.
 - Modes:
@@ -83,5 +83,6 @@ Troubleshooting
 Support
 -------
 If you need help, contact your administrator or deployment owner.
+
 
 

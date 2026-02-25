@@ -627,7 +627,7 @@ const Notes = ({ onOpenAI }) => {
               <path d="M12 8v8"></path>
               <path d="M8 12h8"></path>
             </svg>
-            Smart Notes AI
+            Notex AI
           </button>
         </div>
       </div>
@@ -923,7 +923,7 @@ const Notes = ({ onOpenAI }) => {
 
               <div style={{ marginBottom: "16px" }}>
                 <h4 style={{ marginBottom: "12px", fontSize: "0.9375rem", fontWeight: 600 }}>
-                  Smart Notes AI Actions
+                  Notex AI Actions
                 </h4>
                 <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                   <button 
@@ -1055,4 +1055,5 @@ const Notes = ({ onOpenAI }) => {
 };
 
 export default Notes;
+
 
