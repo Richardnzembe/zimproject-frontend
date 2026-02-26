@@ -48,6 +48,7 @@ const Tasks = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfoByTask, setShareInfoByTask] = useState({});
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -532,6 +533,12 @@ const Tasks = () => {
     }
   }, [tasks, shareInfoByTask]);
 
+  useEffect(() => {
+    const closeMenus = () => setOpenActionMenuId(null);
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, []);
+
   const visibleTasks = tasks.filter((task) => {
     if (task.pending_action === "delete") return false;
     const q = search.trim().toLowerCase();
@@ -708,74 +715,105 @@ const Tasks = () => {
                 >
                   {task.is_completed ? "Mark Active" : "Complete"}
                 </button>
-                <button
-                  className="button-secondary"
-                  onClick={() => editTask(task)}
-                  style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                >
-                  Edit
-                </button>
-                {deleteConfirmId === task.local_id ? (
-                  <>
-                    <button
-                      className="button-danger"
-                      onClick={() => deleteTask(task.local_id)}
-                      style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      className="button-secondary"
-                      onClick={() => setDeleteConfirmId(null)}
-                      style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="button-secondary"
-                    onClick={() => setDeleteConfirmId(task.local_id)}
-                    style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                  >
-                    Delete
-                  </button>
-                )}
-                <button
-                  className="button-secondary"
-                  onClick={() => createShareLink("read", task)}
-                  style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                >
-                  Share
-                </button>
-                <button
-                  className="button-secondary"
-                  onClick={() => createShareLink("collab", task)}
-                  style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                >
-                  Collaborate
-                </button>
                 {(() => {
                   const links = task.server_id ? shareInfoByTask[task.server_id] || [] : [];
                   const currentShare = links.find((item) => item.permission === "collab") || links[0];
-                  if (!currentShare?.token) return null;
                   return (
-                    <>
+                    <div
+                      className={`dropdown ${openActionMenuId === task.local_id ? "open" : ""}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
-                        className="button-secondary"
-                        onClick={() => inviteUserToShare(currentShare.token)}
+                        className="button-secondary actions-trigger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenActionMenuId((prev) => (prev === task.local_id ? null : task.local_id));
+                        }}
                         style={{ padding: "6px 12px", fontSize: "0.85rem" }}
                       >
-                        Add user
+                        Actions
                       </button>
-                      <button
-                        className="button-danger"
-                        onClick={() => revokeTaskShare(task.server_id, currentShare.token)}
-                        style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                      >
-                        Revoke
-                      </button>
-                    </>
+                      <div className="dropdown-menu note-actions-menu">
+                        <button
+                          className="dropdown-item"
+                          onClick={() => {
+                            editTask(task);
+                            setOpenActionMenuId(null);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        {deleteConfirmId === task.local_id ? (
+                          <>
+                            <button
+                              className="dropdown-item danger"
+                              onClick={() => {
+                                deleteTask(task.local_id);
+                                setOpenActionMenuId(null);
+                              }}
+                            >
+                              Confirm delete
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => {
+                                setDeleteConfirmId(null);
+                                setOpenActionMenuId(null);
+                              }}
+                            >
+                              Cancel delete
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="dropdown-item danger"
+                            onClick={() => setDeleteConfirmId(task.local_id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        <button
+                          className="dropdown-item"
+                          onClick={() => {
+                            createShareLink("read", task);
+                            setOpenActionMenuId(null);
+                          }}
+                          disabled={!task.server_id}
+                        >
+                          Share
+                        </button>
+                        <button
+                          className="dropdown-item"
+                          onClick={() => {
+                            createShareLink("collab", task);
+                            setOpenActionMenuId(null);
+                          }}
+                          disabled={!task.server_id}
+                        >
+                          Collaborate
+                        </button>
+                        <button
+                          className="dropdown-item"
+                          onClick={() => {
+                            inviteUserToShare(currentShare?.token);
+                            setOpenActionMenuId(null);
+                          }}
+                          disabled={!currentShare?.token}
+                        >
+                          Add user
+                        </button>
+                        <button
+                          className="dropdown-item danger"
+                          onClick={() => {
+                            revokeTaskShare(task.server_id, currentShare?.token);
+                            setOpenActionMenuId(null);
+                          }}
+                          disabled={!currentShare?.token}
+                        >
+                          Revoke link
+                        </button>
+                      </div>
+                    </div>
                   );
                 })()}
               </div>

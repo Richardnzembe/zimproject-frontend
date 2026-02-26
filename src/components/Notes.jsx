@@ -47,6 +47,8 @@ const Notes = ({ onOpenAI }) => {
   const [deleteConfirmNote, setDeleteConfirmNote] = useState(null);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfo, setShareInfo] = useState([]);
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -417,6 +419,15 @@ const Notes = ({ onOpenAI }) => {
     }
   }, [activeNote?.server_id]);
 
+  useEffect(() => {
+    const closeMenus = () => {
+      setOpenActionMenuId(null);
+      setShareMenuOpen(false);
+    };
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, []);
+
   const insertExtractedText = (text) => {
     setForm((prev) => ({
       ...prev,
@@ -738,7 +749,10 @@ const Notes = ({ onOpenAI }) => {
             <div
               key={note.local_id}
               className="note-card"
-              onClick={() => setActiveNote(note)}
+              onClick={() => {
+                setOpenActionMenuId(null);
+                setActiveNote(note);
+              }}
             >
               <div className="note-card-header">
                 <h3 className="note-card-title">{note.title}</h3>
@@ -784,43 +798,82 @@ const Notes = ({ onOpenAI }) => {
                 onClick={(e) => e.stopPropagation()}
                 style={{ display: "flex", gap: "8px" }}
               >
-                <button 
-                  className="button-secondary"
-                  onClick={() => editNote(note)}
-                  style={{ padding: "6px 12px", fontSize: "0.85rem" }}
+                <div
+                  className={`dropdown ${openActionMenuId === note.local_id ? "open" : ""}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Edit
-                </button>
-                
-                {deleteConfirmNote?.local_id === note.local_id ? (
-                  <>
-                    <button
-                      className="button-danger"
-                      onClick={() => {
-                        deleteNote(note.local_id);
-                        setDeleteConfirmNote(null);
-                      }}
-                      style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      className="button-secondary"
-                      onClick={() => setDeleteConfirmNote(null)}
-                      style={{ padding: "6px 12px", fontSize: "0.85rem" }}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
                   <button
-                    className="button-secondary"
-                    onClick={() => setDeleteConfirmNote(note)}
+                    className="button-secondary actions-trigger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenActionMenuId((prev) => (prev === note.local_id ? null : note.local_id));
+                    }}
                     style={{ padding: "6px 12px", fontSize: "0.85rem" }}
                   >
-                    Delete
+                    Actions
                   </button>
-                )}
+                  <div className="dropdown-menu note-actions-menu">
+                    <button
+                      className="dropdown-item"
+                      onClick={() => {
+                        editNote(note);
+                        setOpenActionMenuId(null);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    {deleteConfirmNote?.local_id === note.local_id ? (
+                      <>
+                        <button
+                          className="dropdown-item danger"
+                          onClick={() => {
+                            deleteNote(note.local_id);
+                            setDeleteConfirmNote(null);
+                            setOpenActionMenuId(null);
+                          }}
+                        >
+                          Confirm delete
+                        </button>
+                        <button
+                          className="dropdown-item"
+                          onClick={() => {
+                            setDeleteConfirmNote(null);
+                            setOpenActionMenuId(null);
+                          }}
+                        >
+                          Cancel delete
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="dropdown-item danger"
+                        onClick={() => setDeleteConfirmNote(note)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                    <button
+                      className="dropdown-item"
+                      onClick={() => {
+                        createShareLink("read", note.server_id);
+                        setOpenActionMenuId(null);
+                      }}
+                      disabled={!note.server_id}
+                    >
+                      Share
+                    </button>
+                    <button
+                      className="dropdown-item"
+                      onClick={() => {
+                        createShareLink("collab", note.server_id);
+                        setOpenActionMenuId(null);
+                      }}
+                      disabled={!note.server_id}
+                    >
+                      Collaborate
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))
@@ -977,34 +1030,60 @@ const Notes = ({ onOpenAI }) => {
             </div>
             
             <div className="modal-footer">
-              <button
-                className="button-secondary"
-                onClick={() => createShareLink("read", activeNote.server_id)}
+              <div
+                className={`dropdown ${shareMenuOpen ? "open" : ""}`}
+                onClick={(e) => e.stopPropagation()}
               >
-                Share
-              </button>
-              <button
-                className="button-secondary"
-                onClick={() => createShareLink("collab", activeNote.server_id)}
-              >
-                Collaborate
-              </button>
-              {currentShare?.token && (
                 <button
-                  className="button-secondary"
-                  onClick={() => inviteUserToShare(currentShare.token)}
+                  className="button-secondary actions-trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShareMenuOpen((prev) => !prev);
+                  }}
                 >
-                  Add user
+                  Share Options
                 </button>
-              )}
-              {currentShare?.token && (
-                <button
-                  className="button-danger"
-                  onClick={() => revokeShareLink(currentShare.token)}
-                >
-                  Revoke link
-                </button>
-              )}
+                <div className="dropdown-menu note-actions-menu">
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      createShareLink("read", activeNote.server_id);
+                      setShareMenuOpen(false);
+                    }}
+                  >
+                    Share
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      createShareLink("collab", activeNote.server_id);
+                      setShareMenuOpen(false);
+                    }}
+                  >
+                    Collaborate
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      inviteUserToShare(currentShare?.token);
+                      setShareMenuOpen(false);
+                    }}
+                    disabled={!currentShare?.token}
+                  >
+                    Add user
+                  </button>
+                  <button
+                    className="dropdown-item danger"
+                    onClick={() => {
+                      revokeShareLink(currentShare?.token);
+                      setShareMenuOpen(false);
+                    }}
+                    disabled={!currentShare?.token}
+                  >
+                    Revoke link
+                  </button>
+                </div>
+              </div>
               <button 
                 className="button-secondary"
                 onClick={() => {

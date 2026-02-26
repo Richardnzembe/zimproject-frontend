@@ -763,7 +763,7 @@ textarea {
   cursor: pointer;
   transition: all var(--transition-fast);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .note-card::before {
@@ -821,6 +821,8 @@ textarea {
   padding-top: 12px;
   border-top: 1px solid var(--border-color);
   justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .note-card-title {
@@ -1587,6 +1589,24 @@ textarea {
 
 .dropdown-item.danger:hover {
   background: #fee2e2;
+}
+
+.dropdown-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dropdown-item:disabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.actions-trigger {
+  min-width: 100px;
+}
+
+.note-actions-menu {
+  min-width: 190px;
 }
 
 /* ===== Modal ===== */
