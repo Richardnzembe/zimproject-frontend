@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Tesseract from "tesseract.js";
 
-const ImageToText = ({ onExtract }) => {
+const ImageToText = ({ onExtract, variant = "full", showStatus = true, className = "" }) => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
@@ -36,11 +36,15 @@ const ImageToText = ({ onExtract }) => {
     }
   };
 
+  const isCompact = variant === "icon";
+
   return (
-    <div className="image-import">
+    <div className={`image-import ${isCompact ? "compact" : ""} ${className}`.trim()}>
       <label
-        className={`image-import-btn ${loading ? "loading" : ""}`}
+        className={`image-import-btn ${isCompact ? "compact" : ""} ${loading ? "loading" : ""}`}
         style={{ cursor: loading ? "not-allowed" : "pointer" }}
+        aria-label={isCompact ? "Import image" : undefined}
+        title={isCompact ? "Import image" : undefined}
       >
         <input
           type="file"
@@ -49,15 +53,24 @@ const ImageToText = ({ onExtract }) => {
           disabled={loading}
           style={{ display: "none" }}
         />
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-          <rect x="3" y="3" width="18" height="14" rx="2"></rect>
-          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-          <path d="M21 15l-5-5L5 21"></path>
-        </svg>
-        {loading ? "Processing..." : "Import from Image"}
+        {isCompact ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        ) : (
+          <>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <rect x="3" y="3" width="18" height="14" rx="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="M21 15l-5-5L5 21"></path>
+            </svg>
+            {loading ? "Processing..." : "Import from Image"}
+          </>
+        )}
       </label>
 
-      {status && (
+      {showStatus && status && (
         <span className={`image-import-status ${status.includes("Failed") ? "error" : ""}`}>
           {status}
         </span>

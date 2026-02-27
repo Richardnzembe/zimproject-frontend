@@ -1272,9 +1272,7 @@ export default function AIChat({ onNavigate }) {
           >
             {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
           </button>
-          <h1 className="ai-header-title">
-            {chatSessions.find((s) => s.id === currentSessionId)?.title || "Notex AI"}
-          </h1>
+          
           <div className="ai-header-actions">
             <ThemeToggle compact iconOnly />
             <div ref={headerMenuRef} style={{ position: "relative" }}>
@@ -1515,7 +1513,6 @@ export default function AIChat({ onNavigate }) {
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <span className="mode-dropdown-desc">{getModeDescription()}</span>
             {modeMenuOpen && (
               <div className="mode-dropdown-menu mode-main-menu">
                 <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
@@ -1571,6 +1568,7 @@ export default function AIChat({ onNavigate }) {
             )}
           </div>
           <div className="ai-composer-inner">
+            <ImageToText onExtract={insertExtractedText} variant="icon" showStatus={false} className="ai-image-import" />
             <textarea
               ref={inputRef}
               className="ai-composer-textarea"
@@ -1587,12 +1585,6 @@ export default function AIChat({ onNavigate }) {
             >
               <SendIcon />
             </button>
-          </div>
-          <div className="ai-composer-tools">
-            <ImageToText onExtract={insertExtractedText} />
-          </div>
-          <div className="ai-disclaimer">
-            Notex AI can make mistakes. Consider checking important information.
           </div>
         </div>
       </main>
