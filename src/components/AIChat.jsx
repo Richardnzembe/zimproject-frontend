@@ -1015,7 +1015,12 @@ export default function AIChat({ onNavigate }) {
   const currentMembers = currentShare?.members || [];
 
   return (
-    <div className="ai-chat">
+    <div
+      className="ai-chat"
+      style={{
+        "--ai-offset": sidebarOpen && !isMobile ? "260px" : "0px",
+      }}
+    >
       {/* Sidebar */}
       <aside className={`ai-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
@@ -1241,13 +1246,7 @@ export default function AIChat({ onNavigate }) {
         }}
       >
         {/* Header with toggle button */}
-        <header
-          className="ai-header"
-          style={{
-            left: sidebarOpen && !isMobile ? "calc(24px + 260px)" : "24px",
-            right: "24px",
-          }}
-        >
+        <header className="ai-header">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
