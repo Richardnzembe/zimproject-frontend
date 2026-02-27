@@ -33,6 +33,9 @@ const LEGACY_ACCESS_TOKEN_KEY = "token";
 const LEGACY_REFRESH_TOKEN_KEY = "refreshToken";
 const LEGACY_ACCESS_TOKEN_COOKIE = "smart_notes_access";
 const LEGACY_REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
+const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
+const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
+const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
 
 let inMemoryAccessToken = null;
 let refreshPromise = null;
@@ -94,6 +97,29 @@ export function clearTokens() {
 export function getAuthHeaders() {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function getUserOpenRouterKey() {
+  return localStorage.getItem(USER_OPENROUTER_KEY_STORAGE) || "";
+}
+
+export function getUserOpenRouterBase() {
+  return localStorage.getItem(USER_OPENROUTER_BASE_STORAGE) || "";
+}
+
+export function getUseUserOpenRouterKey() {
+  return localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true";
+}
+
+export function getUserAiHeaders() {
+  if (!getUseUserOpenRouterKey()) return {};
+  const key = getUserOpenRouterKey().trim();
+  if (!key) return {};
+  const base = getUserOpenRouterBase().trim();
+  return {
+    "X-OpenRouter-Key": key,
+    ...(base ? { "X-OpenRouter-Base": base } : {}),
+  };
 }
 
 export function decodeJwt(token) {
@@ -172,9 +198,11 @@ export async function ensureFreshAccessToken() {
 export async function authFetch(url, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const access = await ensureFreshAccessToken();
+  const includeAiHeaders = url.includes("/api/ai/");
   const headers = {
     ...(options.headers || {}),
     ...(access ? { Authorization: `Bearer ${access}` } : {}),
+    ...(includeAiHeaders ? getUserAiHeaders() : {}),
   };
 
   if (isUnsafeMethod(method)) {
@@ -200,6 +228,7 @@ export async function authFetch(url, options = {}) {
   const retryHeaders = {
     ...(options.headers || {}),
     Authorization: `Bearer ${refreshed}`,
+    ...(includeAiHeaders ? getUserAiHeaders() : {}),
   };
   if (isUnsafeMethod(method)) {
     const csrf = getCookie("csrftoken") || (await ensureCsrfToken());

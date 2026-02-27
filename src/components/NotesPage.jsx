@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import AIModeButtons from "../components/AIModeButtons";
 import NoteCard from "../components/NoteCard";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { getApiBaseUrl, getAuthHeaders, getAuthToken } from "../lib/api";
+import { getApiBaseUrl, getAuthHeaders, getAuthToken, getUserAiHeaders } from "../lib/api";
 
 export default function NotesPage() {
   const [notes, setNotes] = useState([
@@ -28,6 +28,7 @@ export default function NotesPage() {
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
+          ...getUserAiHeaders(),
         },
         body: JSON.stringify({ note_content: note.content, action })
       });
@@ -65,6 +66,7 @@ export default function NotesPage() {
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
+          ...getUserAiHeaders(),
         },
         body: JSON.stringify(body)
       });
