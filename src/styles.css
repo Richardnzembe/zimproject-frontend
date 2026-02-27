@@ -1823,15 +1823,13 @@ textarea {
 }
 
 .ai-image-import {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  transform: none;
 }
 
 .ai-composer-textarea {
   width: 100%;
-  padding: 12px 60px 12px 52px;
+  padding: 12px 60px 12px 150px;
   font-size: 1rem;
   border: 0;
   border-radius: 12px;
@@ -1842,6 +1840,43 @@ textarea {
   max-height: 200px;
   line-height: 1.5;
   outline: none;
+}
+
+.ai-inline-controls {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.ai-mode-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.ai-mode-button:hover {
+  background: var(--background-color);
+  color: var(--text-primary);
+}
+
+.ai-mode-menu {
+  left: 0;
+  right: auto;
+  top: calc(100% + 8px);
 }
 
 .ai-send-button {
