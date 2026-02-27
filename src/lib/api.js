@@ -1,4 +1,4 @@
-import { getCookie, removeCookie, setCookie } from "./cookies";
+import { getCookie, removeCookie } from "./cookies";
 
 const DEV_API_BASE_URL = "http://localhost:8000";
 const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
@@ -28,39 +28,67 @@ function resolveApiBaseUrl() {
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
-const ACCESS_TOKEN_KEY = "token";
-const REFRESH_TOKEN_KEY = "refreshToken";
-const ACCESS_TOKEN_COOKIE = "smart_notes_access";
-const REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
+
+const LEGACY_ACCESS_TOKEN_KEY = "token";
+const LEGACY_REFRESH_TOKEN_KEY = "refreshToken";
+const LEGACY_ACCESS_TOKEN_COOKIE = "smart_notes_access";
+const LEGACY_REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
+
+let inMemoryAccessToken = null;
+let refreshPromise = null;
+
+function getLegacyAccessToken() {
+  return localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || getCookie(LEGACY_ACCESS_TOKEN_COOKIE);
+}
+
+function getLegacyRefreshToken() {
+  return localStorage.getItem(LEGACY_REFRESH_TOKEN_KEY) || getCookie(LEGACY_REFRESH_TOKEN_COOKIE);
+}
+
+function clearLegacyTokens() {
+  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+  removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
+  removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
+}
+
+function isUnsafeMethod(method) {
+  const safeMethods = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
+  return !safeMethods.has((method || "GET").toUpperCase());
+}
+
+async function ensureCsrfToken() {
+  const current = getCookie("csrftoken");
+  if (current) return current;
+  await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
+    method: "GET",
+    credentials: "include",
+  });
+  return getCookie("csrftoken");
+}
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
 
 export function getAuthToken() {
-  return localStorage.getItem(ACCESS_TOKEN_KEY) || getCookie(ACCESS_TOKEN_COOKIE);
+  return inMemoryAccessToken;
 }
 
-export function getRefreshToken() {
-  return localStorage.getItem(REFRESH_TOKEN_KEY) || getCookie(REFRESH_TOKEN_COOKIE);
-}
-
-export function setTokens({ access, refresh }) {
+export function setTokens({ access }) {
   if (access) {
-    localStorage.setItem(ACCESS_TOKEN_KEY, access);
-    setCookie(ACCESS_TOKEN_COOKIE, access, { days: 1, sameSite: "Lax" });
-  }
-  if (refresh) {
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
-    setCookie(REFRESH_TOKEN_COOKIE, refresh, { days: 14, sameSite: "Lax" });
+    inMemoryAccessToken = access;
   }
 }
 
 export function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  removeCookie(ACCESS_TOKEN_COOKIE);
-  removeCookie(REFRESH_TOKEN_COOKIE);
+  inMemoryAccessToken = null;
+  clearLegacyTokens();
+  fetch(`${API_BASE_URL}/api/auth/logout/`, {
+    method: "POST",
+    credentials: "include",
+    keepalive: true,
+  }).catch(() => {});
 }
 
 export function getAuthHeaders() {
@@ -92,51 +120,78 @@ export function isTokenExpired(token, skewSeconds = 30) {
 }
 
 export async function refreshAccessToken() {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
+  if (refreshPromise) return refreshPromise;
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.access) {
-      clearTokens();
+  refreshPromise = (async () => {
+    const legacyRefresh = getLegacyRefreshToken();
+    const requestBody = legacyRefresh ? JSON.stringify({ refresh: legacyRefresh }) : "{}";
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: requestBody,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.access) {
+        inMemoryAccessToken = null;
+        clearLegacyTokens();
+        window.dispatchEvent(new Event("auth-changed"));
+        return null;
+      }
+      inMemoryAccessToken = data.access;
+      clearLegacyTokens();
+      window.dispatchEvent(new Event("auth-changed"));
+      return data.access;
+    } catch {
+      inMemoryAccessToken = null;
       window.dispatchEvent(new Event("auth-changed"));
       return null;
+    } finally {
+      refreshPromise = null;
     }
-    setTokens({ access: data.access });
-    window.dispatchEvent(new Event("auth-changed"));
-    return data.access;
-  } catch {
-    clearTokens();
-    window.dispatchEvent(new Event("auth-changed"));
-    return null;
-  }
+  })();
+
+  return refreshPromise;
 }
 
 export async function ensureFreshAccessToken() {
-  const access = getAuthToken();
-  if (!access) {
-    return await refreshAccessToken();
+  if (inMemoryAccessToken && !isTokenExpired(inMemoryAccessToken)) {
+    return inMemoryAccessToken;
   }
-  if (isTokenExpired(access)) {
-    return await refreshAccessToken();
+
+  const legacyAccess = getLegacyAccessToken();
+  if (legacyAccess && !isTokenExpired(legacyAccess)) {
+    inMemoryAccessToken = legacyAccess;
   }
-  return access;
+
+  return await refreshAccessToken();
 }
 
 export async function authFetch(url, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
   const access = await ensureFreshAccessToken();
   const headers = {
     ...(options.headers || {}),
     ...(access ? { Authorization: `Bearer ${access}` } : {}),
   };
 
-  const res = await fetch(url, { ...options, headers, credentials: options.credentials || "include" });
+  if (isUnsafeMethod(method)) {
+    const csrf = await ensureCsrfToken();
+    if (csrf) {
+      headers["X-CSRFToken"] = csrf;
+    }
+  }
+
+  const requestOptions = {
+    ...options,
+    method,
+    headers,
+    credentials: options.credentials || "include",
+  };
+
+  const res = await fetch(url, requestOptions);
   if (res.status !== 401) return res;
 
   const refreshed = await refreshAccessToken();
@@ -146,17 +201,32 @@ export async function authFetch(url, options = {}) {
     ...(options.headers || {}),
     Authorization: `Bearer ${refreshed}`,
   };
-  return await fetch(url, { ...options, headers: retryHeaders, credentials: options.credentials || "include" });
+  if (isUnsafeMethod(method)) {
+    const csrf = getCookie("csrftoken") || (await ensureCsrfToken());
+    if (csrf) {
+      retryHeaders["X-CSRFToken"] = csrf;
+    }
+  }
+  return await fetch(url, {
+    ...options,
+    method,
+    headers: retryHeaders,
+    credentials: options.credentials || "include",
+  });
 }
 
 export async function initializeAuth() {
-  const access = getAuthToken();
-  const refresh = getRefreshToken();
-  if (!access && refresh) {
-    await refreshAccessToken();
-    return;
+  const refreshed = await refreshAccessToken();
+  if (!refreshed) {
+    const legacyAccess = getLegacyAccessToken();
+    if (legacyAccess && !isTokenExpired(legacyAccess)) {
+      inMemoryAccessToken = legacyAccess;
+      window.dispatchEvent(new Event("auth-changed"));
+    }
   }
-  if (access && isTokenExpired(access) && refresh) {
-    await refreshAccessToken();
-  }
+}
+
+// Kept for backward compatibility with existing imports.
+export function getRefreshToken() {
+  return getLegacyRefreshToken();
 }

@@ -309,6 +309,10 @@ small {
   overflow: hidden;
 }
 
+.card.dropdown-host {
+  overflow: visible;
+}
+
 .card::after {
   content: "";
   position: absolute;

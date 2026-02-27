@@ -605,7 +605,7 @@ const Notes = ({ onOpenAI }) => {
   const currentMembers = currentShare?.members || [];
 
   return (
-    <div className="card">
+    <div className="card dropdown-host">
       <div className="card-header">
         <h2 className="card-title">
           {editingId ? "Edit Note" : "My Notes"}

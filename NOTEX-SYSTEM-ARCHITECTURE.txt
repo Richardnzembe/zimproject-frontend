@@ -1,0 +1,245 @@
+NOTEX SYSTEM ARCHITECTURE AND APPLICATION LOGIC
+=============================================
+
+1) System Overview
+------------------
+Notex is a React + Vite Progressive Web App (PWA) for study productivity.
+The frontend is responsible for:
+- Authentication UI and token lifecycle
+- Notes and tasks management (with offline-first sync)
+- AI chat and AI note actions
+- Share links and collaboration actions
+- Notification center and local/browser reminders
+- Theme, cookie consent, and user-facing UX behavior
+
+The backend is consumed through REST endpoints (auth, notes, tasks, AI, sharing, notifications-related resources).
+
+
+2) Core Tech Stack
+------------------
+Frontend runtime:
+- React 19
+- Vite 7
+- Vite PWA plugin
+
+Client storage:
+- localStorage (UI/session state, notifications, consent, theme)
+- Cookies (auth tokens, theme, consent)
+- IndexedDB via idb (notes/tasks/AI history local data + sync staging)
+
+Data communication:
+- fetch + centralized helper authFetch in src/lib/api.js
+
+
+3) High-Level Frontend Structure
+--------------------------------
+Entry and shell:
+- src/main.jsx mounts App
+- src/App.jsx is the root view controller
+
+Main views (selected by activeView in App):
+- home
+- notes
+- tasks
+- ai
+- shares
+- notifications
+- account
+- share (tokenized shared-resource view)
+
+Primary components:
+- Navigation.jsx: sidebar navigation
+- Notes.jsx: notes CRUD + AI actions + share actions
+- Tasks.jsx: tasks CRUD + share actions
+- AIChat.jsx: multi-session chat, AI modes, share/collab, session history
+- SharedAccess.jsx: read/collab shared resource access by token
+- ShareControlPanel.jsx: centralized share link management
+- AuthPanel.jsx: login/register/password reset/account options
+- NotificationCenter.jsx + NotificationsPage.jsx: notification UI
+- ThemeToggle.jsx and CookieBanner.jsx: preferences/compliance UX
+
+
+4) Navigation and Layout Design
+-------------------------------
+The app uses a responsive left sidebar model:
+- Desktop: persistent sidebar
+- Mobile: slide-out sidebar with overlay and close controls
+
+App routing is internal state-based (not react-router):
+- activeView in App.jsx controls which major view renders
+- onNavigate callbacks are passed into sub-components
+
+
+5) Authentication and Session Logic
+-----------------------------------
+Auth handling is centralized in src/lib/api.js.
+
+Token model:
+- Access and refresh tokens are persisted in:
+  - localStorage
+  - cookies (for session continuity and production cookie-compatible behavior)
+
+Key behaviors:
+- initializeAuth() refreshes session when access is missing/expired
+- authFetch() attaches bearer token, retries once on 401 using refreshAccessToken()
+- auth-changed window event is broadcast whenever auth state changes
+- Components listen to auth-changed to reload/reset scoped data
+
+Security-oriented defaults:
+- Production API URL warning if HTTPS is not used
+- fetch credentials include mode enabled for cookie-compatible backend flows
+
+
+6) Data Layer and Offline-First Strategy
+----------------------------------------
+IndexedDB schema (src/db.js):
+- notes
+- tasks
+- ai_history
+- projects (reserved/legacy support)
+
+Notes and tasks are designed offline-first:
+- Local writes happen immediately (pending state)
+- Sync engine pushes pending actions to server when online
+- Pending actions include create/update/delete
+- Local records keep local_id, client_id, server_id, sync_status, pending_action
+
+Sync triggers:
+- On component init
+- On auth-changed
+- On browser online event
+- On periodic interval (30s)
+
+Conflict approach:
+- Pending local changes are preserved
+- Server snapshots are merged with local pending records
+
+
+7) Notes Module Logic
+---------------------
+Notes.jsx responsibilities:
+- Create/edit/delete notes
+- Local search/filter
+- AI note actions (summarize/explain/questions)
+- Share links (read/collab), invites, member removal, revoke
+
+AI note action flow:
+- POST /api/ai/notes/
+- Response is shown in note modal
+- Interaction is also written to ai_history in IndexedDB
+
+
+8) Tasks Module Logic
+---------------------
+Tasks.jsx responsibilities:
+- Create/edit/delete tasks
+- Priority and due-date management
+- Completion toggle
+- Search/filter (all/active/completed)
+- Share links and collaboration member management
+
+Tasks follow the same offline-first sync model used by notes.
+
+
+9) AI Chat Architecture
+-----------------------
+AIChat.jsx is a multi-session workspace with history reconstruction.
+
+Modes:
+- general
+- study
+- project (sub-mode guided/fast)
+
+Endpoint mapping:
+- General: /api/ai/general/
+- Study: /api/ai/study/
+- Project: /api/ai/project/ with project mode in payload
+
+Session/history model:
+- Local history stored in ai_history (IndexedDB)
+- Optionally refreshed from server /api/ai/history/
+- Sessions are reconstructed by session_id grouping
+- Supports rename/delete session operations
+
+Share integration in AI chat:
+- Share link creation for chat sessions
+- Invite/revoke/member management
+- Shared URLs consumed by SharedAccess.jsx
+
+
+10) Sharing and Collaboration Model
+-----------------------------------
+ShareControlPanel.jsx and per-resource controls use share APIs.
+
+Supported resource types:
+- chat
+- note
+- task
+
+Permissions:
+- read
+- collab
+
+Shared access behavior (SharedAccess.jsx):
+- Token-based fetch of shared content
+- Authenticated collaboration for collab links
+- Invite acceptance/decline support
+- Owner can remove members
+
+
+11) Notifications Architecture
+------------------------------
+Notification system is implemented via useNotificationFeed() in src/lib/notifications.js.
+
+Sources:
+- Share invites
+- Task due/due-soon checks
+- Periodic study reminders
+
+Storage and state:
+- Notifications persisted in localStorage per user scope
+- Seen-event IDs deduplicate notifications
+- Browser Notification API integration (permission-based)
+
+
+12) Preferences, Theming, and Cookies
+-------------------------------------
+Theme:
+- Light/dark/system mode
+- Stored in localStorage and cookie
+
+Cookie consent:
+- CookieBanner allows essential-only or accept-all
+- Consent stored in localStorage and cookie
+
+Auth cookies:
+- Access/refresh mirrors are written for continuity
+- SameSite=Lax and Secure on HTTPS
+
+
+13) Production Readiness Decisions in Current Frontend
+------------------------------------------------------
+Implemented:
+- PWA manifest and installable app metadata
+- Token refresh and retry-on-401 flow
+- Offline-first notes/tasks with retry sync
+- Cookie support + consent UI
+- Responsive UI navigation and mode controls
+
+Recommended backend-aligned hardening (next step):
+- Move to HttpOnly secure cookies fully managed server-side
+- Enforce strict CORS and CSRF policy for credentialed requests
+- Add centralized error telemetry/logging (Sentry or similar)
+- Add automated integration tests for sync + auth + sharing workflows
+
+
+14) Design Intent Summary
+-------------------------
+The application was designed around:
+- Reliability under unstable connectivity (offline-first notes/tasks)
+- Seamless auth continuity (refresh + token persistence)
+- Modular feature domains (Notes, Tasks, AI, Sharing, Notifications)
+- Progressive enhancement (PWA + browser notifications)
+- Practical collaboration workflows through share links and role-based actions
+
+This architecture prioritizes practical usability for students while keeping the frontend extensible for future backend/security upgrades.

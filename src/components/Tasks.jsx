@@ -554,7 +554,7 @@ const Tasks = () => {
   });
 
   return (
-    <div className="card">
+    <div className="card dropdown-host">
       <div className="card-header">
         <h2 className="card-title">{editingId ? "Edit Task" : "My Tasks"}</h2>
         {syncing && (

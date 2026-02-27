@@ -231,7 +231,7 @@ const AIHistory = () => {
   };
 
   return (
-    <div className="card">
+    <div className="card dropdown-host">
       <h2>AI Chat History</h2>
 
       {!authToken ? (

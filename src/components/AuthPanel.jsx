@@ -106,6 +106,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/login/`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: safeUsername, password: safePassword }),
       });
