@@ -1015,31 +1015,9 @@ export default function AIChat({ onNavigate }) {
   const currentMembers = currentShare?.members || [];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        overflow: "hidden",
-        background: "var(--background-color)",
-      }}
-    >
+    <div className="ai-chat">
       {/* Sidebar */}
-      <aside
-        style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          height: "100vh",
-          width: sidebarOpen ? "260px" : "0",
-          background: "#202123",
-          color: "#fff",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 100,
-          transition: "width 0.3s ease",
-          overflow: "hidden",
-        }}
-      >
+      <aside className={`ai-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
@@ -1251,45 +1229,19 @@ export default function AIChat({ onNavigate }) {
 
       {/* Mobile overlay */}
       <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.4)",
-          zIndex: 99,
-          display: sidebarOpen && isMobile ? "block" : "none",
-        }}
+        className={`ai-sidebar-overlay ${sidebarOpen && isMobile ? "show" : ""}`}
         onClick={() => setSidebarOpen(false)}
       />
 
       {/* Main content */}
       <main
+        className="ai-main"
         style={{
-          flex: 1,
           marginLeft: sidebarOpen && !isMobile ? "260px" : "0",
-          transition: "margin-left 0.3s ease",
-          display: "flex",
-          flexDirection: "column",
-          height: "100vh",
-          overflow: "hidden",
         }}
       >
         {/* Header with toggle button */}
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            padding: "12px 20px",
-            background: "var(--surface-color)",
-            borderBottom: "1px solid var(--border-color)",
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-          }}
-        >
+        <header className="ai-header">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
@@ -1314,10 +1266,10 @@ export default function AIChat({ onNavigate }) {
           >
             {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
           </button>
-          <h1 style={{ fontSize: "1.125rem", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
+          <h1 className="ai-header-title">
             {chatSessions.find((s) => s.id === currentSessionId)?.title || "Notex AI"}
           </h1>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="ai-header-actions">
             <ThemeToggle compact iconOnly />
             <div ref={headerMenuRef} style={{ position: "relative" }}>
               <button
@@ -1406,7 +1358,7 @@ export default function AIChat({ onNavigate }) {
         )}
 
         {/* Chat messages */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "24px 0" }}>
+        <div className="ai-messages">
           {isNewChat && (
             <div className="mode-picker">
               <div className="mode-picker-card">
@@ -1453,29 +1405,9 @@ export default function AIChat({ onNavigate }) {
           )}
 
           {messages.map((message) => (
-            <div
-              key={message.id}
-              style={{
-                display: "flex",
-                gap: "16px",
-                maxWidth: "768px",
-                margin: "0 auto",
-                padding: "0 24px",
-                marginBottom: "24px",
-              }}
-            >
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "6px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  background: message.role === "user" ? "#5436da" : "#10a37f",
-                }}
-              >
+            <div key={message.id} className={`ai-message ${message.role}`}>
+              <div className="ai-message-inner">
+                <div className="ai-message-avatar">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
                   {message.role === "user" ? (
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -1492,8 +1424,8 @@ export default function AIChat({ onNavigate }) {
                   )}
                 </svg>
               </div>
-              <div style={{ flex: 1, paddingTop: "2px" }}>
-                <div style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "8px", color: "#1a1a1a" }}>
+              <div className="ai-message-body">
+                <div className="ai-message-name">
                   {message.role === "user" ? "You" : "Notex AI"}
                 </div>
                 <div className="chat-message-text">
@@ -1502,21 +1434,10 @@ export default function AIChat({ onNavigate }) {
                     : message.content}
                 </div>
                 {message.role === "assistant" && (
-                  <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                  <div className="ai-message-actions">
                     <button
                       onClick={() => copyToClipboard(message.content, message.id)}
-                      style={{
-                        padding: "6px 10px",
-                        fontSize: "0.75rem",
-                        background: "transparent",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "6px",
-                        color: "#525252",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
+                      className="ai-copy-button"
                     >
                       {copiedId === message.id ? <CheckIcon /> : <CopyIcon />}
                       {copiedId === message.id ? " Copied" : " Copy"}
@@ -1524,34 +1445,16 @@ export default function AIChat({ onNavigate }) {
                   </div>
                 )}
               </div>
+              </div>
             </div>
           ))}
 
           {loading && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                padding: "24px",
-                maxWidth: "768px",
-                margin: "0 auto",
-              }}
-            >
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "6px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#10a37f",
-                }}
-              >
+            <div className="ai-typing">
+              <div className="ai-message-avatar">
                 <BotIcon />
               </div>
-              <div style={{ display: "flex", gap: "6px", paddingTop: "8px" }}>
+              <div className="ai-typing-dots">
                 <span
                   style={{
                     width: "8px",
@@ -1589,16 +1492,7 @@ export default function AIChat({ onNavigate }) {
         </div>
 
         {/* Input area */}
-        <div
-          style={{
-            padding: "16px 24px 24px",
-            background: "var(--background-color)",
-            borderTop: "1px solid var(--border-color)",
-            position: "sticky",
-            bottom: 0,
-            zIndex: 10,
-          }}
-        >
+        <div className="ai-composer">
           <div className="mode-dropdown" ref={modeMenuRef}>
             <button
               className="mode-dropdown-btn"
@@ -1664,24 +1558,10 @@ export default function AIChat({ onNavigate }) {
               </div>
             )}
           </div>
-          <div style={{ maxWidth: "768px", margin: "0 auto", position: "relative" }}>
+          <div className="ai-composer-inner">
             <textarea
               ref={inputRef}
-              style={{
-                width: "100%",
-                padding: "14px 60px 14px 18px",
-                fontSize: "1rem",
-                border: "1px solid var(--border-color)",
-                borderRadius: "16px",
-                background: "var(--surface-color)",
-                color: "var(--text-primary)",
-                resize: "none",
-                minHeight: "52px",
-                maxHeight: "200px",
-                lineHeight: 1.5,
-                boxShadow: "var(--shadow-sm)",
-                outline: "none",
-              }}
+              className="ai-composer-textarea"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -1691,30 +1571,15 @@ export default function AIChat({ onNavigate }) {
             <button
               onClick={sendMessage}
               disabled={loading || !input.trim()}
-              style={{
-                position: "absolute",
-                right: "12px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                padding: "8px",
-                background: input.trim() && !loading ? "#10a37f" : "#ccc",
-                border: "none",
-                borderRadius: "8px",
-                color: "white",
-                cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.15s ease",
-              }}
+              className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
             >
               <SendIcon />
             </button>
           </div>
-          <div style={{ maxWidth: "768px", margin: "8px auto 0", display: "flex", alignItems: "center" }}>
+          <div className="ai-composer-tools">
             <ImageToText onExtract={insertExtractedText} />
           </div>
-          <div style={{ textAlign: "center", marginTop: "12px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+          <div className="ai-disclaimer">
             Notex AI can make mistakes. Consider checking important information.
           </div>
         </div>
