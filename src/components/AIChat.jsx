@@ -1241,7 +1241,13 @@ export default function AIChat({ onNavigate }) {
         }}
       >
         {/* Header with toggle button */}
-        <header className="ai-header">
+        <header
+          className="ai-header"
+          style={{
+            left: sidebarOpen && !isMobile ? "calc(24px + 260px)" : "24px",
+            right: "24px",
+          }}
+        >
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             style={{
@@ -1492,7 +1498,13 @@ export default function AIChat({ onNavigate }) {
         </div>
 
         {/* Input area */}
-        <div className="ai-composer">
+        <div
+          className="ai-composer"
+          style={{
+            left: sidebarOpen && !isMobile ? "calc(24px + 260px)" : "24px",
+            right: "24px",
+          }}
+        >
           <div className="mode-dropdown" ref={modeMenuRef}>
             <button
               className="mode-dropdown-btn"
