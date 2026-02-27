@@ -1806,7 +1806,7 @@ textarea {
   position: fixed;
   left: calc(24px + 260px);
   right: 24px;
-  bottom: 16px;
+  bottom: 28px;
   z-index: 80;
 }
 
