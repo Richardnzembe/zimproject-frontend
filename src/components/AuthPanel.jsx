@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuthUserId } from "../lib/api";
 
+const PIN_STORAGE_KEY = "notex_device_pin_hash";
+const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
+const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
+const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
+
+const hashPin = async (value) => {
+  const data = new TextEncoder().encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+};
+
 const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
@@ -18,9 +31,26 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [accountPassword, setAccountPassword] = useState("");
   const [accountPasswordConfirm, setAccountPasswordConfirm] = useState("");
   const [displayUsername, setDisplayUsername] = useState("");
+  const [pinStatus, setPinStatus] = useState("");
+  const [pinVerified, setPinVerified] = useState(false);
+  const [pinSetup, setPinSetup] = useState({ pin: "", confirm: "" });
+  const [pinUnlock, setPinUnlock] = useState("");
+  const [showPinChange, setShowPinChange] = useState(false);
+  const [pinChange, setPinChange] = useState({ current: "", next: "", confirm: "" });
+  const [useOwnKey, setUseOwnKey] = useState(
+    localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true"
+  );
+  const [openRouterKey, setOpenRouterKey] = useState(
+    localStorage.getItem(USER_OPENROUTER_KEY_STORAGE) || ""
+  );
+  const [openRouterBase, setOpenRouterBase] = useState(
+    localStorage.getItem(USER_OPENROUTER_BASE_STORAGE) || ""
+  );
+  const [showKey, setShowKey] = useState(false);
 
   const token = getAuthToken();
   const userId = getAuthUserId();
+  const hasPin = Boolean(localStorage.getItem(PIN_STORAGE_KEY));
 
   const safeJson = async (res) => {
     try {
@@ -327,6 +357,73 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     setLoading(false);
   };
 
+  const setDevicePin = async () => {
+    setPinStatus("");
+    if (pinSetup.pin.length < 4) {
+      setPinStatus("PIN must be at least 4 digits.");
+      return;
+    }
+    if (pinSetup.pin !== pinSetup.confirm) {
+      setPinStatus("PINs do not match.");
+      return;
+    }
+    const hashed = await hashPin(pinSetup.pin);
+    localStorage.setItem(PIN_STORAGE_KEY, hashed);
+    setPinSetup({ pin: "", confirm: "" });
+    setPinVerified(true);
+    setPinStatus("PIN set successfully.");
+  };
+
+  const unlockWithPin = async () => {
+    setPinStatus("");
+    const stored = localStorage.getItem(PIN_STORAGE_KEY);
+    if (!stored) return;
+    const hashed = await hashPin(pinUnlock);
+    if (hashed !== stored) {
+      setPinStatus("Incorrect PIN.");
+      return;
+    }
+    setPinVerified(true);
+    setPinUnlock("");
+    setPinStatus("");
+  };
+
+  const changePin = async () => {
+    setPinStatus("");
+    const stored = localStorage.getItem(PIN_STORAGE_KEY);
+    if (!stored) return;
+    const currentHash = await hashPin(pinChange.current);
+    if (currentHash !== stored) {
+      setPinStatus("Current PIN is incorrect.");
+      return;
+    }
+    if (pinChange.next.length < 4) {
+      setPinStatus("New PIN must be at least 4 digits.");
+      return;
+    }
+    if (pinChange.next !== pinChange.confirm) {
+      setPinStatus("New PINs do not match.");
+      return;
+    }
+    const nextHash = await hashPin(pinChange.next);
+    localStorage.setItem(PIN_STORAGE_KEY, nextHash);
+    setPinChange({ current: "", next: "", confirm: "" });
+    setShowPinChange(false);
+    setPinStatus("PIN updated.");
+  };
+
+  const saveUserKey = () => {
+    setPinStatus("");
+    if (useOwnKey && !openRouterKey.trim()) {
+      setPinStatus("Enter your OpenRouter API key or disable the toggle.");
+      return;
+    }
+    localStorage.setItem(USE_USER_OPENROUTER_KEY_STORAGE, String(useOwnKey));
+    localStorage.setItem(USER_OPENROUTER_KEY_STORAGE, openRouterKey.trim());
+    localStorage.setItem(USER_OPENROUTER_BASE_STORAGE, openRouterBase.trim());
+    setPinStatus("AI key settings saved.");
+  };
+
   const heading =
     resetStep === "request"
       ? "Reset password"
@@ -363,6 +460,128 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
             <button onClick={handleLogout} style={{ width: "100%" }}>
               Logout
             </button>
+          </div>
+
+          <div style={{ marginTop: "16px", display: "grid", gap: "12px" }}>
+            <div style={{ padding: "12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)" }}>
+              <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>AI API Key (OpenRouter)</h3>
+              <p style={{ margin: "0 0 12px 0", color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
+                Your key is stored only on this device. Set a device PIN to access or change it.
+              </p>
+
+              {!hasPin && (
+                <div style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={pinSetup.pin}
+                    onChange={(e) => setPinSetup((prev) => ({ ...prev, pin: e.target.value }))}
+                    placeholder="Create device PIN (min 4 digits)"
+                  />
+                  <input
+                    type="password"
+                    value={pinSetup.confirm}
+                    onChange={(e) => setPinSetup((prev) => ({ ...prev, confirm: e.target.value }))}
+                    placeholder="Confirm PIN"
+                  />
+                  <button onClick={setDevicePin}>Set PIN</button>
+                </div>
+              )}
+
+              {hasPin && !pinVerified && (
+                <div style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="password"
+                    value={pinUnlock}
+                    onChange={(e) => setPinUnlock(e.target.value)}
+                    placeholder="Enter device PIN to unlock"
+                  />
+                  <button onClick={unlockWithPin}>Unlock</button>
+                </div>
+              )}
+
+              {hasPin && pinVerified && (
+                <>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                    <input
+                      type="checkbox"
+                      checked={useOwnKey}
+                      onChange={(e) => setUseOwnKey(e.target.checked)}
+                    />
+                    Use my OpenRouter API key
+                  </label>
+
+                  <div style={{ display: "grid", gap: "8px", marginBottom: "12px" }}>
+                    <input
+                      type={showKey ? "text" : "password"}
+                      value={openRouterKey}
+                      onChange={(e) => setOpenRouterKey(e.target.value)}
+                      placeholder="OpenRouter API key"
+                    />
+                    <input
+                      type="text"
+                      value={openRouterBase}
+                      onChange={(e) => setOpenRouterBase(e.target.value)}
+                      placeholder="OpenRouter base URL (optional)"
+                    />
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => setShowKey((prev) => !prev)}
+                      >
+                        {showKey ? "Hide Key" : "Show Key"}
+                      </button>
+                      <button type="button" onClick={saveUserKey}>
+                        Save
+                      </button>
+                    </div>
+                  </div>
+
+                  {!showPinChange ? (
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => setShowPinChange(true)}
+                    >
+                      Change PIN
+                    </button>
+                  ) : (
+                    <div style={{ display: "grid", gap: "8px", marginTop: "12px" }}>
+                      <input
+                        type="password"
+                        value={pinChange.current}
+                        onChange={(e) => setPinChange((prev) => ({ ...prev, current: e.target.value }))}
+                        placeholder="Current PIN"
+                      />
+                      <input
+                        type="password"
+                        value={pinChange.next}
+                        onChange={(e) => setPinChange((prev) => ({ ...prev, next: e.target.value }))}
+                        placeholder="New PIN"
+                      />
+                      <input
+                        type="password"
+                        value={pinChange.confirm}
+                        onChange={(e) => setPinChange((prev) => ({ ...prev, confirm: e.target.value }))}
+                        placeholder="Confirm new PIN"
+                      />
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button onClick={changePin}>Update PIN</button>
+                        <button
+                          className="button-secondary"
+                          onClick={() => {
+                            setShowPinChange(false);
+                            setPinChange({ current: "", next: "", confirm: "" });
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {accountOptionsOpen && (
@@ -548,12 +767,17 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         </>
       )}
 
-      {status && (
+      {(status || pinStatus) && (
         <p
-          className={`status-message ${status.includes("Error") || status.includes("error") || status.includes("failed") || status.includes("Failed") ? "error" : "success"}`}
+          className={`status-message ${
+            ((status || pinStatus).includes("Error") ||
+              (status || pinStatus).includes("error") ||
+              (status || pinStatus).includes("failed") ||
+              (status || pinStatus).includes("Failed")) ? "error" : "success"
+          }`}
           style={{ marginTop: "16px" }}
         >
-          {status}
+          {status || pinStatus}
         </p>
       )}
     </div>
