@@ -1829,7 +1829,7 @@ textarea {
 
 .ai-composer-textarea {
   width: 100%;
-  padding: 12px 60px 12px 150px;
+  padding: 12px 60px 12px 320px;
   font-size: 1rem;
   border: 0;
   border-radius: 12px;
@@ -1871,6 +1871,22 @@ textarea {
 .ai-mode-button:hover {
   background: var(--background-color);
   color: var(--text-primary);
+}
+
+.ai-model-select {
+  max-width: 220px;
+  min-width: 170px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.ai-model-select:focus {
+  border-color: color-mix(in srgb, var(--primary-color) 55%, var(--border-color));
 }
 
 .ai-mode-menu {
@@ -1935,6 +1951,16 @@ textarea {
 
   .ai-composer {
     padding: 0;
+  }
+
+  .ai-composer-textarea {
+    padding-left: 240px;
+  }
+
+  .ai-model-select {
+    min-width: 130px;
+    max-width: 130px;
+    font-size: 0.75rem;
   }
 }
 

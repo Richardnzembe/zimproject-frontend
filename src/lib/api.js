@@ -36,6 +36,7 @@ const LEGACY_REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
 const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
 const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
 const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
+const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
 
 let inMemoryAccessToken = null;
 let refreshPromise = null;
@@ -111,14 +112,19 @@ export function getUseUserOpenRouterKey() {
   return localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true";
 }
 
+export function getUserOpenRouterModel() {
+  return localStorage.getItem(USER_OPENROUTER_MODEL_STORAGE) || "";
+}
+
 export function getUserAiHeaders() {
-  if (!getUseUserOpenRouterKey()) return {};
   const key = getUserOpenRouterKey().trim();
-  if (!key) return {};
+  const model = getUserOpenRouterModel().trim();
+  const isAutoModel = model.toLowerCase() === "auto";
   const base = getUserOpenRouterBase().trim();
   return {
-    "X-OpenRouter-Key": key,
+    ...(getUseUserOpenRouterKey() && key ? { "X-OpenRouter-Key": key } : {}),
     ...(base ? { "X-OpenRouter-Base": base } : {}),
+    ...(model && !isAutoModel ? { "X-OpenRouter-Model": model } : {}),
   };
 }
 

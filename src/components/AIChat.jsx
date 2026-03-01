@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { getApiBaseUrl, getAuthToken, getAuthUserId, authFetch, clearTokens } from "../lib/api";
+import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
@@ -127,6 +127,16 @@ const ChatIcon = () => (
   </svg>
 );
 
+const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
+const FREE_OPENROUTER_MODELS = [
+  { value: "auto", label: "Auto (OpenRouter default)" },
+  { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
+  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B Instruct (Free)" },
+  { value: "qwen/qwen-2.5-72b-instruct:free", label: "Qwen 2.5 72B Instruct (Free)" },
+  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
+  { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
+];
+
 export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [chatSessions, setChatSessions] = useState([]);
@@ -146,7 +156,12 @@ export default function AIChat({ onNavigate }) {
   const [projectOptionsOpen, setProjectOptionsOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
+  const [modelStatus, setModelStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
+  const [selectedModel, setSelectedModel] = useState(() => {
+    const stored = (getUserOpenRouterModel() || "").trim();
+    return stored || "auto";
+  });
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const headerMenuRef = useRef(null);
@@ -402,6 +417,10 @@ export default function AIChat({ onNavigate }) {
     };
   }, [authToken, currentSessionId]);
 
+  useEffect(() => {
+    localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, selectedModel);
+  }, [selectedModel]);
+
   // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -623,6 +642,7 @@ export default function AIChat({ onNavigate }) {
     const messageToSend = input;
     setInput("");
     setLoading(true);
+    setModelStatus("");
 
     try {
       const session = chatSessions.find((s) => s.id === currentSessionId);
@@ -671,6 +691,9 @@ export default function AIChat({ onNavigate }) {
 
       if (!res.ok) {
         const errorMessage = data?.detail || data?.error || "AI request failed";
+        if (data?.request_message) {
+          setModelStatus(data.request_message);
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -681,6 +704,9 @@ export default function AIChat({ onNavigate }) {
           },
         ]);
       } else {
+        if (data?.request_message) {
+          setModelStatus(data.request_message);
+        }
         const responseText =
           data.answer || data.result || data.project || JSON.stringify(data, null, 2);
         const historyId = data?.history_id ?? null;
@@ -1013,6 +1039,9 @@ export default function AIChat({ onNavigate }) {
     shareInfoBySession[currentSessionId]?.find((s) => s.permission === "collab") ||
     shareInfoBySession[currentSessionId]?.[0];
   const currentMembers = currentShare?.members || [];
+  const modelOptions = FREE_OPENROUTER_MODELS.some((option) => option.value === selectedModel)
+    ? FREE_OPENROUTER_MODELS
+    : [...FREE_OPENROUTER_MODELS, { value: selectedModel, label: `Custom (${selectedModel})` }];
 
   return (
     <div
@@ -1328,6 +1357,11 @@ export default function AIChat({ onNavigate }) {
             {shareStatus}
           </div>
         )}
+        {modelStatus && (
+          <div style={{ padding: "0 20px 8px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            {modelStatus}
+          </div>
+        )}
         {currentMembers.length > 0 && (
           <div style={{ padding: "0 20px 8px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
             Collaborators:
@@ -1516,6 +1550,22 @@ export default function AIChat({ onNavigate }) {
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
+              <select
+                className="ai-model-select"
+                value={selectedModel}
+                onChange={(e) => {
+                  const nextModel = e.target.value;
+                  setSelectedModel(nextModel);
+                  localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
+                }}
+                title="Select model"
+              >
+                {modelOptions.map((modelOption) => (
+                  <option key={modelOption.value} value={modelOption.value}>
+                    {modelOption.label}
+                  </option>
+                ))}
+              </select>
               {modeMenuOpen && (
                 <div className="mode-dropdown-menu mode-main-menu ai-mode-menu">
                   <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>

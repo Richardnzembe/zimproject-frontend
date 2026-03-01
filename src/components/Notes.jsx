@@ -564,10 +564,13 @@ const Notes = ({ onOpenAI }) => {
 
       const data = await res.json();
       if (!res.ok) {
-        setAIResult(data?.error || data?.detail || `AI request failed (${res.status})`);
+        const errorText = data?.error || data?.detail || `AI request failed (${res.status})`;
+        const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
+        setAIResult(`${requestMessage}${errorText}`);
       } else {
         const responseText = data.updated_note || "No response from AI.";
-        setAIResult(responseText);
+        const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
+        setAIResult(`${requestMessage}${responseText}`);
         const userId = getAuthUserId();
         if (userId) {
           await upsertHistoryItems([
