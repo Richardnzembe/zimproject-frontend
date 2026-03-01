@@ -8,7 +8,8 @@
     "start-all": "concurrently \"cd ../zimproject_backend && python manage.py runserver\" \"npm run dev\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "idb": "^8.0.3",
@@ -17,6 +18,7 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.25.6",
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -31,8 +33,7 @@
     "react-chartjs-2": "^5.3.1",
     "tailwindcss": "^4.1.18",
     "vite": "^7.2.4",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "wrangler": "^4.69.0"
   }
 }
-
-
