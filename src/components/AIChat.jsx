@@ -1550,6 +1550,7 @@ export default function AIChat({ onNavigate }) {
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
+              <span className="ai-model-label">Model</span>
               <select
                 className="ai-model-select"
                 value={selectedModel}
@@ -1559,6 +1560,7 @@ export default function AIChat({ onNavigate }) {
                   localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
                 }}
                 title="Select model"
+                aria-label="Select OpenRouter model"
               >
                 {modelOptions.map((modelOption) => (
                   <option key={modelOption.value} value={modelOption.value}>

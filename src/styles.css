@@ -1873,6 +1873,12 @@ textarea {
   color: var(--text-primary);
 }
 
+.ai-model-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 .ai-model-select {
   max-width: 220px;
   min-width: 170px;
