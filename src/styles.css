@@ -1829,7 +1829,7 @@ textarea {
 
 .ai-composer-textarea {
   width: 100%;
-  padding: 12px 60px 12px 320px;
+  padding: 12px 60px 12px 170px;
   font-size: 1rem;
   border: 0;
   border-radius: 12px;
@@ -1873,13 +1873,19 @@ textarea {
   color: var(--text-primary);
 }
 
-.ai-model-label {
+.ai-header-model-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-header-model-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
   font-weight: 600;
 }
 
-.ai-model-select {
+.ai-header-model-select {
   max-width: 220px;
   min-width: 170px;
   padding: 6px 10px;
@@ -1891,7 +1897,7 @@ textarea {
   outline: none;
 }
 
-.ai-model-select:focus {
+.ai-header-model-select:focus {
   border-color: color-mix(in srgb, var(--primary-color) 55%, var(--border-color));
 }
 
@@ -1960,10 +1966,14 @@ textarea {
   }
 
   .ai-composer-textarea {
-    padding-left: 240px;
+    padding-left: 160px;
   }
 
-  .ai-model-select {
+  .ai-header-model-label {
+    display: none;
+  }
+
+  .ai-header-model-select {
     min-width: 130px;
     max-width: 130px;
     font-size: 0.75rem;

@@ -1302,6 +1302,26 @@ export default function AIChat({ onNavigate }) {
           </button>
           
           <div className="ai-header-actions">
+            <div className="ai-header-model-wrap">
+              <span className="ai-header-model-label">Model</span>
+              <select
+                className="ai-header-model-select"
+                value={selectedModel}
+                onChange={(e) => {
+                  const nextModel = e.target.value;
+                  setSelectedModel(nextModel);
+                  localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
+                }}
+                title="Select model"
+                aria-label="Select OpenRouter model"
+              >
+                {modelOptions.map((modelOption) => (
+                  <option key={modelOption.value} value={modelOption.value}>
+                    {modelOption.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <ThemeToggle compact iconOnly />
             <div ref={headerMenuRef} style={{ position: "relative" }}>
               <button
@@ -1550,24 +1570,6 @@ export default function AIChat({ onNavigate }) {
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
-              <span className="ai-model-label">Model</span>
-              <select
-                className="ai-model-select"
-                value={selectedModel}
-                onChange={(e) => {
-                  const nextModel = e.target.value;
-                  setSelectedModel(nextModel);
-                  localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
-                }}
-                title="Select model"
-                aria-label="Select OpenRouter model"
-              >
-                {modelOptions.map((modelOption) => (
-                  <option key={modelOption.value} value={modelOption.value}>
-                    {modelOption.label}
-                  </option>
-                ))}
-              </select>
               {modeMenuOpen && (
                 <div className="mode-dropdown-menu mode-main-menu ai-mode-menu">
                   <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
