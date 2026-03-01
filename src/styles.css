@@ -2172,15 +2172,40 @@ textarea {
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
-.notes-reading-modal {
-  max-width: min(1040px, 96vw);
-  width: min(1040px, 96vw);
-  max-height: 92vh;
+.notes-reading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--background-color);
+}
+
+.notes-reading-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .notes-reading-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--surface-color) 94%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.notes-reading-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 24px 24px;
 }
 
 .notes-reading-title {
@@ -2234,7 +2259,8 @@ textarea {
 }
 
 .notes-reading-status {
-  padding: 0 24px 12px;
+  width: min(780px, 100%);
+  margin: 0 auto 12px;
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
@@ -2253,7 +2279,12 @@ textarea {
 }
 
 .notes-reading-body {
-  padding-top: 16px;
+  padding-top: 6px;
+}
+
+.notes-reading-share-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
 }
 
 .notes-reading-tags {
@@ -2349,11 +2380,16 @@ textarea {
 
   .notes-reading-header {
     flex-direction: column;
+    padding: 14px 16px;
   }
 
   .notes-reading-toolbar {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .notes-reading-content {
+    padding: 12px 12px 18px;
   }
 
   .notes-reading-title {

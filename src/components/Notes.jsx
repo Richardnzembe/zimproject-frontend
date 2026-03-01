@@ -901,11 +901,11 @@ const Notes = ({ onOpenAI }) => {
       </div>
 
       {activeNote && (
-        <div className="modal-overlay" onClick={() => setActiveNote(null)}>
-          <div className="modal-content notes-reading-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header notes-reading-header">
+        <section className="notes-reading-screen">
+          <div className="notes-reading-shell">
+            <div className="notes-reading-header">
               <div>
-                <h2 className="modal-title notes-reading-title">{activeNote.title}</h2>
+                <h2 className="notes-reading-title">{activeNote.title}</h2>
                 <div className="notes-reading-meta">
                   {activeNote.subject && <span className="tag">{activeNote.subject}</span>}
                   <span className="tag">{activeNote.category}</span>
@@ -914,18 +914,17 @@ const Notes = ({ onOpenAI }) => {
                   </span>
                 </div>
               </div>
-              <div className="notes-reading-toolbar" onClick={(e) => e.stopPropagation()}>
+              <div className="notes-reading-toolbar">
                 <div className={`dropdown ${shareMenuOpen ? "open" : ""}`}>
                   <button
                     className="notes-reading-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       setShareMenuOpen((prev) => !prev);
                     }}
                   >
                     Share
                   </button>
-                  <div className="dropdown-menu note-actions-menu">
+                  <div className="dropdown-menu note-actions-menu notes-reading-share-menu">
                     <button
                       className="dropdown-item"
                       onClick={() => {
@@ -1003,37 +1002,39 @@ const Notes = ({ onOpenAI }) => {
                   </button>
                 )}
                 <button className="modal-close" onClick={() => setActiveNote(null)} aria-label="Close note">
-                  x
+                  X
                 </button>
               </div>
             </div>
-            {shareStatus && (
-              <div className="notes-reading-status">
-                {shareStatus}
-              </div>
-            )}
-            {currentMembers.length > 0 && (
-              <div className="notes-reading-status">
-                Collaborators:
-                <div className="notes-reading-collaborators">
-                  {currentMembers.map((member) => (
-                    <span key={member.user?.id || member.user?.username} className="tag notes-reading-member">
-                      {member.user?.username}
-                      {member.user?.id && (
-                        <button
-                          className="notes-reading-btn mini"
-                          onClick={() => removeMemberFromShare(currentShare?.token, member.user.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </span>
-                  ))}
+
+            <div className="notes-reading-content">
+              {shareStatus && (
+                <div className="notes-reading-status">
+                  {shareStatus}
                 </div>
-              </div>
-            )}
-            
-            <div className="modal-body notes-reading-body">
+              )}
+              {currentMembers.length > 0 && (
+                <div className="notes-reading-status">
+                  Collaborators:
+                  <div className="notes-reading-collaborators">
+                    {currentMembers.map((member) => (
+                      <span key={member.user?.id || member.user?.username} className="tag notes-reading-member">
+                        {member.user?.username}
+                        {member.user?.id && (
+                          <button
+                            className="notes-reading-btn mini"
+                            onClick={() => removeMemberFromShare(currentShare?.token, member.user.id)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="notes-reading-body">
               {normalizeTags(activeNote.tags).length > 0 && (
                 <div className="tags notes-reading-tags">
                   {normalizeTags(activeNote.tags).map((t, i) => (
@@ -1111,9 +1112,10 @@ const Notes = ({ onOpenAI }) => {
                   ) : null}
                 </div>
               )}
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
