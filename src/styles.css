@@ -331,6 +331,11 @@ small {
   transform: translateY(-2px);
 }
 
+.card.reader-open:hover {
+  box-shadow: var(--shadow-md);
+  transform: none;
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -2177,6 +2182,7 @@ textarea {
   inset: 0;
   z-index: 300;
   background: var(--background-color);
+  isolation: isolate;
 }
 
 .notes-reading-shell {

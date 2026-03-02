@@ -625,7 +625,7 @@ const Notes = ({ onOpenAI }) => {
     : [...FREE_OPENROUTER_MODELS, { value: selectedModel, label: `Custom (${selectedModel})` }];
 
   return (
-    <div className="card dropdown-host">
+    <div className={`card dropdown-host ${activeNote ? "reader-open" : ""}`}>
       <div className="card-header">
         <h2 className="card-title">
           {editingId ? "Edit Note" : "My Notes"}

@@ -79,9 +79,15 @@ export function getAuthToken() {
   return inMemoryAccessToken;
 }
 
-export function setTokens({ access }) {
+export function setTokens({ access, refresh }) {
   if (access) {
     inMemoryAccessToken = access;
+    localStorage.setItem(LEGACY_ACCESS_TOKEN_KEY, access);
+    removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
+  }
+  if (refresh) {
+    localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, refresh);
+    removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
   }
 }
 
@@ -173,7 +179,14 @@ export async function refreshAccessToken() {
         return null;
       }
       inMemoryAccessToken = data.access;
-      clearLegacyTokens();
+      localStorage.setItem(LEGACY_ACCESS_TOKEN_KEY, data.access);
+      removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
+      if (data.refresh) {
+        localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, data.refresh);
+      } else if (legacyRefresh) {
+        localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, legacyRefresh);
+      }
+      removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
       window.dispatchEvent(new Event("auth-changed"));
       return data.access;
     } catch {
