@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, authFetch, clearTokens } from "../lib/api";
+import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
@@ -239,8 +239,13 @@ export default function AIChat({ onNavigate }) {
   }
 
   async function loadHistory({ preferRemote = false } = {}) {
-    const userId = getAuthUserId();
-    if (!userId) return;
+    const userId = getAuthUserId() || (await ensureAuthUserId());
+    if (!userId) {
+      setChatSessions([]);
+      setMessages([]);
+      setCurrentSessionId(null);
+      return;
+    }
 
     let historyItems = await getHistoryByUser(userId);
 
@@ -731,7 +736,7 @@ export default function AIChat({ onNavigate }) {
           );
         }
 
-        const userId = getAuthUserId();
+        const userId = getAuthUserId() || (await ensureAuthUserId());
         if (userId) {
           const localId = crypto.randomUUID();
           await upsertHistoryItems([

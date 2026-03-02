@@ -162,8 +162,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         return;
       }
 
-      setTokens();
-      await authFetch(`${getApiBaseUrl()}/api/auth/me/`);
+      await setTokens();
       window.dispatchEvent(new Event("auth-changed"));
       setStatus("Logged in successfully!");
     } catch (err) {

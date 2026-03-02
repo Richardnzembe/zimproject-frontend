@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ImageToText from "./ImageToText";
-import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, authFetch } from "../lib/api";
+import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
 import {
   getNotesByUser,
   replaceUserNotes,
@@ -112,7 +112,7 @@ const Notes = ({ onOpenAI }) => {
   });
 
   const loadLocalNotes = async () => {
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return [];
     const local = await getNotesByUser(userId);
     const normalized = local.map((note) => ({
@@ -124,7 +124,7 @@ const Notes = ({ onOpenAI }) => {
   };
 
   const mergeServerNotes = async (serverNotes) => {
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
     const local = await getNotesByUser(userId);
     const pending = local.filter((n) => n.sync_status !== "synced");
@@ -287,7 +287,7 @@ const Notes = ({ onOpenAI }) => {
 
   const syncPendingNotes = async () => {
     if (!navigator.onLine) return;
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
 
     const local = await getNotesByUser(userId);
@@ -382,6 +382,11 @@ const Notes = ({ onOpenAI }) => {
         setStatus("Please login to use notes.");
         return;
       }
+      const userId = getAuthUserId() || (await ensureAuthUserId());
+      if (!userId) {
+        setStatus("Finishing login setup...");
+        return;
+      }
 
       await loadLocalNotes();
       await loadApiNotes();
@@ -395,6 +400,11 @@ const Notes = ({ onOpenAI }) => {
     const onAuthChange = async () => {
       const token = getAuthToken();
       if (token) {
+        const userId = getAuthUserId() || (await ensureAuthUserId());
+        if (!userId) {
+          setStatus("Finishing login setup...");
+          return;
+        }
         setStatus("");
         await loadLocalNotes();
         await loadApiNotes();
@@ -453,7 +463,7 @@ const Notes = ({ onOpenAI }) => {
     if (!form.title || !form.content) return;
 
     const token = getAuthToken();
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!token || !userId) {
       setStatus("Please login to save notes.");
       return;
@@ -527,7 +537,7 @@ const Notes = ({ onOpenAI }) => {
 
   const deleteNote = async (localId) => {
     const token = getAuthToken();
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!token || !userId) {
       setStatus("Please login to delete notes.");
       return;
@@ -585,7 +595,7 @@ const Notes = ({ onOpenAI }) => {
         const responseText = data.updated_note || "No response from AI.";
         const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
         setAIResult(`${requestMessage}${responseText}`);
-        const userId = getAuthUserId();
+        const userId = getAuthUserId() || (await ensureAuthUserId());
         if (userId) {
           await upsertHistoryItems([
             {

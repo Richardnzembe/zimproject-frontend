@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId } from "../lib/api";
+import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId } from "../lib/api";
 import {
   deleteLocalTask,
   getTasksByUser,
@@ -81,7 +81,7 @@ const Tasks = () => {
   });
 
   const loadLocalTasks = async () => {
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return [];
     const local = await getTasksByUser(userId);
     const normalized = local.map((task) => ({
@@ -93,7 +93,7 @@ const Tasks = () => {
   };
 
   const mergeServerTasks = async (serverTasks) => {
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
     const local = await getTasksByUser(userId);
     const pending = local.filter((t) => t.sync_status !== "synced");
@@ -139,7 +139,7 @@ const Tasks = () => {
 
   const syncPendingTasks = async () => {
     if (!navigator.onLine) return;
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
 
     const local = await getTasksByUser(userId);
@@ -243,7 +243,7 @@ const Tasks = () => {
     if (!title) return;
 
     const token = getAuthToken();
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!token || !userId) {
       setStatus("Please login to manage tasks.");
       return;
@@ -426,7 +426,7 @@ const Tasks = () => {
   };
 
   const toggleTaskCompleted = async (task) => {
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
 
     await upsertTasks([
@@ -445,7 +445,7 @@ const Tasks = () => {
 
   const deleteTask = async (localId) => {
     const token = getAuthToken();
-    const userId = getAuthUserId();
+    const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!token || !userId) {
       setStatus("Please login to manage tasks.");
       return;
@@ -481,6 +481,11 @@ const Tasks = () => {
         setStatus("Please login to use tasks.");
         return;
       }
+      const userId = getAuthUserId() || (await ensureAuthUserId());
+      if (!userId) {
+        setStatus("Finishing login setup...");
+        return;
+      }
       await loadLocalTasks();
       await loadApiTasks();
       await syncPendingTasks();
@@ -492,6 +497,11 @@ const Tasks = () => {
     const onAuthChange = async () => {
       const token = getAuthToken();
       if (token) {
+        const userId = getAuthUserId() || (await ensureAuthUserId());
+        if (!userId) {
+          setStatus("Finishing login setup...");
+          return;
+        }
         setStatus("");
         await loadLocalTasks();
         await loadApiTasks();

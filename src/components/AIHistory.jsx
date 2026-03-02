@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getApiBaseUrl, getAuthToken, getAuthUserId, authFetch } from "../lib/api";
+import { getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId, authFetch } from "../lib/api";
 import Charts from "./Charts";
 import { getHistoryByUser, replaceUserHistory } from "../db";
 
@@ -30,10 +30,19 @@ const AIHistory = () => {
   const [renameId, setRenameId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
 
+  const resolveUserId = async () => getAuthUserId() || (await ensureAuthUserId());
+
   const fetchHistory = async () => {
     const token = getAuthToken();
     if (!token) {
       setStatus("Please login to view history.");
+      return;
+    }
+
+    const resolvedUserId = await resolveUserId();
+    if (!resolvedUserId) {
+      setStatus("Finishing login setup...");
+      setLoading(false);
       return;
     }
 
@@ -42,8 +51,7 @@ const AIHistory = () => {
 
     try {
       if (!navigator.onLine) {
-        const userId = getAuthUserId();
-        const cached = userId ? await getHistoryByUser(userId) : [];
+        const cached = await getHistoryByUser(resolvedUserId);
         const sorted = cached.sort(
           (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
         );
@@ -65,26 +73,22 @@ const AIHistory = () => {
         setStatus(data?.detail || `Failed to load history (${res.status})`);
         setHistory([]);
       } else {
-        const userId = getAuthUserId();
         const items = Array.isArray(data) ? data : [];
         const mapped = items.map((item) => ({
           ...item,
           local_id: `server-${item.id}`,
           server_id: item.id,
-          user_id: userId,
+          user_id: resolvedUserId,
         }));
         setHistory(mapped);
-        if (userId) {
-          await replaceUserHistory(userId, mapped);
-        }
+        await replaceUserHistory(resolvedUserId, mapped);
         if (!items.length) {
           setStatus("No history yet.");
         }
       }
     } catch (err) {
       console.error(err);
-      const userId = getAuthUserId();
-      const cached = userId ? await getHistoryByUser(userId) : [];
+      const cached = await getHistoryByUser(resolvedUserId);
       const sorted = cached.sort(
         (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
       );
@@ -99,6 +103,12 @@ const AIHistory = () => {
     const token = getAuthToken();
     if (!token) {
       setStatus("Please login to delete history.");
+      return;
+    }
+
+    const resolvedUserId = await resolveUserId();
+    if (!resolvedUserId) {
+      setStatus("Finishing login setup...");
       return;
     }
 
@@ -117,10 +127,7 @@ const AIHistory = () => {
         const data = await res.json();
         setStatus(data?.detail || `Failed to delete history (${res.status})`);
       } else {
-        const userId = getAuthUserId();
-        if (userId) {
-          await replaceUserHistory(userId, []);
-        }
+        await replaceUserHistory(resolvedUserId, []);
         setHistory([]);
         setStatus("All history has been deleted.");
       }
@@ -136,6 +143,12 @@ const AIHistory = () => {
     const token = getAuthToken();
     if (!token) {
       setStatus("Please login to delete history.");
+      return;
+    }
+
+    const resolvedUserId = await resolveUserId();
+    if (!resolvedUserId) {
+      setStatus("Finishing login setup...");
       return;
     }
 
@@ -158,10 +171,7 @@ const AIHistory = () => {
         const updatedHistory = history.filter((h) => h.id !== item.id);
         setHistory(updatedHistory);
         
-        const userId = getAuthUserId();
-        if (userId) {
-          await replaceUserHistory(userId, updatedHistory);
-        }
+        await replaceUserHistory(resolvedUserId, updatedHistory);
         setStatus("History item deleted.");
       }
     } catch (err) {

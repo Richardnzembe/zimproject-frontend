@@ -7,6 +7,7 @@ const USER_ID_STORAGE_KEY = "notex_user_id";
 
 let isAuthenticated = false;
 let refreshPromise = null;
+let userIdentityPromise = null;
 
 function normalizeApiBaseUrl(url) {
   return url.replace(/\/+$/, "");
@@ -67,6 +68,24 @@ async function hydrateUserIdentity() {
   return null;
 }
 
+async function ensureUserIdentity(force = false) {
+  if (!isAuthenticated) return null;
+  const currentId = getAuthUserId();
+  if (currentId && !force) return currentId;
+  if (userIdentityPromise) return userIdentityPromise;
+
+  userIdentityPromise = (async () => {
+    const hydratedId = await hydrateUserIdentity();
+    return hydratedId;
+  })();
+
+  try {
+    return await userIdentityPromise;
+  } finally {
+    userIdentityPromise = null;
+  }
+}
+
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
@@ -75,12 +94,14 @@ export function getAuthToken() {
   return isAuthenticated;
 }
 
-export function setTokens() {
+export async function setTokens() {
   isAuthenticated = true;
+  await ensureUserIdentity(true);
 }
 
 export async function clearTokens() {
   isAuthenticated = false;
+  userIdentityPromise = null;
   localStorage.removeItem(USER_ID_STORAGE_KEY);
   try {
     const csrf = await ensureCsrfToken();
@@ -124,6 +145,10 @@ export function getAuthUserId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export async function ensureAuthUserId() {
+  return await ensureUserIdentity(false);
+}
+
 export async function refreshAccessToken() {
   if (refreshPromise) return refreshPromise;
 
@@ -141,16 +166,18 @@ export async function refreshAccessToken() {
       });
       if (!res.ok) {
         isAuthenticated = false;
+        userIdentityPromise = null;
         localStorage.removeItem(USER_ID_STORAGE_KEY);
         window.dispatchEvent(new Event("auth-changed"));
         return false;
       }
       isAuthenticated = true;
-      await hydrateUserIdentity();
+      await ensureUserIdentity(true);
       window.dispatchEvent(new Event("auth-changed"));
       return true;
     } catch {
       isAuthenticated = false;
+      userIdentityPromise = null;
       localStorage.removeItem(USER_ID_STORAGE_KEY);
       window.dispatchEvent(new Event("auth-changed"));
       return false;
@@ -181,6 +208,10 @@ export async function authFetch(url, options = {}) {
     headers,
     credentials: options.credentials || "include",
   });
+
+  if (response.ok && isAuthenticated && !getAuthUserId()) {
+    await ensureUserIdentity(false);
+  }
 
   if (response.status !== 401) return response;
 
