@@ -1,7 +1,12 @@
-import { getCookie, removeCookie } from "./cookies";
+import { getCookie } from "./cookies";
 
 const DEV_API_BASE_URL = "http://localhost:8000";
 const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
+const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
+const USER_ID_STORAGE_KEY = "notex_user_id";
+
+let isAuthenticated = false;
+let refreshPromise = null;
 
 function normalizeApiBaseUrl(url) {
   return url.replace(/\/+$/, "");
@@ -29,33 +34,6 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
-const LEGACY_ACCESS_TOKEN_KEY = "token";
-const LEGACY_REFRESH_TOKEN_KEY = "refreshToken";
-const LEGACY_ACCESS_TOKEN_COOKIE = "smart_notes_access";
-const LEGACY_REFRESH_TOKEN_COOKIE = "smart_notes_refresh";
-const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
-const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
-const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
-const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
-
-let inMemoryAccessToken = null;
-let refreshPromise = null;
-
-function getLegacyAccessToken() {
-  return localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY) || getCookie(LEGACY_ACCESS_TOKEN_COOKIE);
-}
-
-function getLegacyRefreshToken() {
-  return localStorage.getItem(LEGACY_REFRESH_TOKEN_KEY) || getCookie(LEGACY_REFRESH_TOKEN_COOKIE);
-}
-
-function clearLegacyTokens() {
-  localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
-  localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
-  removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
-  removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
-}
-
 function isUnsafeMethod(method) {
   const safeMethods = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
   return !safeMethods.has((method || "GET").toUpperCase());
@@ -71,51 +49,56 @@ async function ensureCsrfToken() {
   return getCookie("csrftoken");
 }
 
+async function hydrateUserIdentity() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/me/`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    if (data?.id) {
+      localStorage.setItem(USER_ID_STORAGE_KEY, String(data.id));
+      return data.id;
+    }
+  } catch {
+    // Keep state unchanged on transient failures.
+  }
+  return null;
+}
+
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
 
 export function getAuthToken() {
-  return inMemoryAccessToken;
+  return isAuthenticated;
 }
 
-export function setTokens({ access, refresh }) {
-  if (access) {
-    inMemoryAccessToken = access;
-    localStorage.setItem(LEGACY_ACCESS_TOKEN_KEY, access);
-    removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
-  }
-  if (refresh) {
-    localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, refresh);
-    removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
-  }
+export function setTokens() {
+  isAuthenticated = true;
 }
 
-export function clearTokens() {
-  inMemoryAccessToken = null;
-  clearLegacyTokens();
-  fetch(`${API_BASE_URL}/api/auth/logout/`, {
-    method: "POST",
-    credentials: "include",
-    keepalive: true,
-  }).catch(() => {});
+export async function clearTokens() {
+  isAuthenticated = false;
+  localStorage.removeItem(USER_ID_STORAGE_KEY);
+  try {
+    const csrf = await ensureCsrfToken();
+    await fetch(`${API_BASE_URL}/api/auth/logout/`, {
+      method: "POST",
+      credentials: "include",
+      headers: csrf ? { "X-CSRFToken": csrf } : {},
+      keepalive: true,
+    });
+  } catch {
+    // Best effort logout.
+  } finally {
+    window.dispatchEvent(new Event("auth-changed"));
+  }
 }
 
 export function getAuthHeaders() {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-export function getUserOpenRouterKey() {
-  return localStorage.getItem(USER_OPENROUTER_KEY_STORAGE) || "";
-}
-
-export function getUserOpenRouterBase() {
-  return localStorage.getItem(USER_OPENROUTER_BASE_STORAGE) || "";
-}
-
-export function getUseUserOpenRouterKey() {
-  return localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true";
+  return {};
 }
 
 export function getUserOpenRouterModel() {
@@ -123,76 +106,54 @@ export function getUserOpenRouterModel() {
 }
 
 export function getUserAiHeaders() {
-  const key = getUserOpenRouterKey().trim();
   const model = getUserOpenRouterModel().trim();
   const isAutoModel = model.toLowerCase() === "auto";
-  const base = getUserOpenRouterBase().trim();
   return {
-    ...(getUseUserOpenRouterKey() && key ? { "X-OpenRouter-Key": key } : {}),
-    ...(base ? { "X-OpenRouter-Base": base } : {}),
     ...(model && !isAutoModel ? { "X-OpenRouter-Model": model } : {}),
   };
 }
 
-export function decodeJwt(token) {
-  if (!token) return null;
-  try {
-    const payload = token.split(".")[1];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    return decoded;
-  } catch {
-    return null;
-  }
+export function decodeJwt() {
+  return null;
 }
 
 export function getAuthUserId() {
-  const payload = decodeJwt(getAuthToken());
-  return payload?.user_id ?? null;
-}
-
-export function isTokenExpired(token, skewSeconds = 30) {
-  const payload = decodeJwt(token);
-  if (!payload?.exp) return false;
-  const now = Math.floor(Date.now() / 1000);
-  return payload.exp <= now + skewSeconds;
+  const raw = localStorage.getItem(USER_ID_STORAGE_KEY);
+  if (!raw) return null;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export async function refreshAccessToken() {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const legacyRefresh = getLegacyRefreshToken();
-    const requestBody = legacyRefresh ? JSON.stringify({ refresh: legacyRefresh }) : "{}";
-
     try {
+      const csrf = await ensureCsrfToken();
       const res = await fetch(`${API_BASE_URL}/api/auth/refresh/`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrf ? { "X-CSRFToken": csrf } : {}),
+        },
+        body: "{}",
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.access) {
-        inMemoryAccessToken = null;
-        clearLegacyTokens();
+      if (!res.ok) {
+        isAuthenticated = false;
+        localStorage.removeItem(USER_ID_STORAGE_KEY);
         window.dispatchEvent(new Event("auth-changed"));
-        return null;
+        return false;
       }
-      inMemoryAccessToken = data.access;
-      localStorage.setItem(LEGACY_ACCESS_TOKEN_KEY, data.access);
-      removeCookie(LEGACY_ACCESS_TOKEN_COOKIE);
-      if (data.refresh) {
-        localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, data.refresh);
-      } else if (legacyRefresh) {
-        localStorage.setItem(LEGACY_REFRESH_TOKEN_KEY, legacyRefresh);
-      }
-      removeCookie(LEGACY_REFRESH_TOKEN_COOKIE);
+      isAuthenticated = true;
+      await hydrateUserIdentity();
       window.dispatchEvent(new Event("auth-changed"));
-      return data.access;
+      return true;
     } catch {
-      inMemoryAccessToken = null;
+      isAuthenticated = false;
+      localStorage.removeItem(USER_ID_STORAGE_KEY);
       window.dispatchEvent(new Event("auth-changed"));
-      return null;
+      return false;
     } finally {
       refreshPromise = null;
     }
@@ -201,61 +162,41 @@ export async function refreshAccessToken() {
   return refreshPromise;
 }
 
-export async function ensureFreshAccessToken() {
-  if (inMemoryAccessToken && !isTokenExpired(inMemoryAccessToken)) {
-    return inMemoryAccessToken;
-  }
-
-  const legacyAccess = getLegacyAccessToken();
-  if (legacyAccess && !isTokenExpired(legacyAccess)) {
-    inMemoryAccessToken = legacyAccess;
-  }
-
-  return await refreshAccessToken();
-}
-
 export async function authFetch(url, options = {}) {
   const method = (options.method || "GET").toUpperCase();
-  const access = await ensureFreshAccessToken();
   const includeAiHeaders = url.includes("/api/ai/");
   const headers = {
     ...(options.headers || {}),
-    ...(access ? { Authorization: `Bearer ${access}` } : {}),
     ...(includeAiHeaders ? getUserAiHeaders() : {}),
   };
 
   if (isUnsafeMethod(method)) {
     const csrf = await ensureCsrfToken();
-    if (csrf) {
-      headers["X-CSRFToken"] = csrf;
-    }
+    if (csrf) headers["X-CSRFToken"] = csrf;
   }
 
-  const requestOptions = {
+  const response = await fetch(url, {
     ...options,
     method,
     headers,
     credentials: options.credentials || "include",
-  };
+  });
 
-  const res = await fetch(url, requestOptions);
-  if (res.status !== 401) return res;
+  if (response.status !== 401) return response;
 
   const refreshed = await refreshAccessToken();
-  if (!refreshed) return res;
+  if (!refreshed) return response;
 
   const retryHeaders = {
     ...(options.headers || {}),
-    Authorization: `Bearer ${refreshed}`,
     ...(includeAiHeaders ? getUserAiHeaders() : {}),
   };
   if (isUnsafeMethod(method)) {
     const csrf = getCookie("csrftoken") || (await ensureCsrfToken());
-    if (csrf) {
-      retryHeaders["X-CSRFToken"] = csrf;
-    }
+    if (csrf) retryHeaders["X-CSRFToken"] = csrf;
   }
-  return await fetch(url, {
+
+  return fetch(url, {
     ...options,
     method,
     headers: retryHeaders,
@@ -264,17 +205,9 @@ export async function authFetch(url, options = {}) {
 }
 
 export async function initializeAuth() {
-  const refreshed = await refreshAccessToken();
-  if (!refreshed) {
-    const legacyAccess = getLegacyAccessToken();
-    if (legacyAccess && !isTokenExpired(legacyAccess)) {
-      inMemoryAccessToken = legacyAccess;
-      window.dispatchEvent(new Event("auth-changed"));
-    }
-  }
+  await refreshAccessToken();
 }
 
-// Kept for backward compatibility with existing imports.
 export function getRefreshToken() {
-  return getLegacyRefreshToken();
+  return null;
 }

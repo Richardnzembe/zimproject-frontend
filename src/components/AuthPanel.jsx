@@ -2,9 +2,6 @@ import React, { useEffect, useState } from "react";
 import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuthUserId } from "../lib/api";
 
 const PIN_STORAGE_KEY = "notex_device_pin_hash";
-const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
-const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
-const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
 
 const hashPin = async (value) => {
   const data = new TextEncoder().encode(value);
@@ -37,16 +34,11 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [pinUnlock, setPinUnlock] = useState("");
   const [showPinChange, setShowPinChange] = useState(false);
   const [pinChange, setPinChange] = useState({ current: "", next: "", confirm: "" });
-  const [useOwnKey, setUseOwnKey] = useState(
-    localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true"
-  );
-  const [openRouterKey, setOpenRouterKey] = useState(
-    localStorage.getItem(USER_OPENROUTER_KEY_STORAGE) || ""
-  );
-  const [openRouterBase, setOpenRouterBase] = useState(
-    localStorage.getItem(USER_OPENROUTER_BASE_STORAGE) || ""
-  );
+  const [useOwnKey, setUseOwnKey] = useState(false);
+  const [openRouterKey, setOpenRouterKey] = useState("");
+  const [keyConfigured, setKeyConfigured] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const [profileId, setProfileId] = useState(null);
 
   const token = getAuthToken();
   const userId = getAuthUserId();
@@ -105,6 +97,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         }
         if (isActive) {
           setDisplayUsername(data?.username || "");
+          setProfileId(data?.id || null);
         }
       } catch (err) {
         console.error(err);
@@ -122,6 +115,27 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       setAccountOptionsOpen(true);
     }
   }, [accountOptionsTrigger, token]);
+
+  useEffect(() => {
+    if (!token) return;
+    let isActive = true;
+    const loadAiKeyState = async () => {
+      try {
+        const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`);
+        const data = await safeJson(res);
+        if (!res.ok || !isActive) return;
+        const configured = Boolean(data?.configured);
+        setUseOwnKey(configured);
+        setKeyConfigured(configured);
+      } catch {
+        // Keep defaults on transient failures.
+      }
+    };
+    loadAiKeyState();
+    return () => {
+      isActive = false;
+    };
+  }, [token]);
 
   const handleLogin = async () => {
     const safeUsername = username.trim();
@@ -148,7 +162,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         return;
       }
 
-      setTokens({ access: data.access, refresh: data.refresh });
+      setTokens();
+      await authFetch(`${getApiBaseUrl()}/api/auth/me/`);
       window.dispatchEvent(new Event("auth-changed"));
       setStatus("Logged in successfully!");
     } catch (err) {
@@ -211,12 +226,13 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     setLoading(false);
   };
 
-  const handleLogout = () => {
-    clearTokens();
+  const handleLogout = async () => {
+    await clearTokens();
     window.dispatchEvent(new Event("auth-changed"));
     setStatus("Logged out");
     setAccountOptionsOpen(false);
     setDisplayUsername("");
+    setProfileId(null);
   };
 
   const handlePasswordResetRequest = async () => {
@@ -287,7 +303,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       setStatus("Passwords do not match.");
       return;
     }
-    if (!userId) {
+    const resolvedUserId = profileId || userId;
+    if (!resolvedUserId) {
       setStatus("Missing user information.");
       return;
     }
@@ -296,7 +313,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     setStatus("");
 
     try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${userId}/set_password/`, {
+      const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${resolvedUserId}/set_password/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ new_password: accountPassword }),
@@ -320,7 +337,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!userId) {
+    const resolvedUserId = profileId || userId;
+    if (!resolvedUserId) {
       setStatus("Missing user information.");
       return;
     }
@@ -336,14 +354,14 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     setStatus("");
 
     try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${userId}/delete/`, {
+      const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${resolvedUserId}/delete/`, {
         method: "DELETE",
       });
       const data = await safeJson(res);
       if (!res.ok) {
         setStatus(extractErrorMessage(data, `Delete failed (${res.status})`));
       } else {
-        clearTokens();
+        await clearTokens();
         window.dispatchEvent(new Event("auth-changed"));
         setStatus(data?.detail || "Account has been deleted successfully.");
         setAccountOptionsOpen(false);
@@ -412,16 +430,39 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     setPinStatus("PIN updated.");
   };
 
-  const saveUserKey = () => {
+  const saveUserKey = async () => {
     setPinStatus("");
-    if (useOwnKey && !openRouterKey.trim()) {
-      setPinStatus("Enter your OpenRouter API key or disable the toggle.");
-      return;
+    try {
+      if (!useOwnKey) {
+        const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`, { method: "DELETE" });
+        if (!res.ok) {
+          setPinStatus(`Failed to remove AI key (${res.status})`);
+          return;
+        }
+        setKeyConfigured(false);
+        setOpenRouterKey("");
+        setPinStatus("AI key removed.");
+        return;
+      }
+      if (!openRouterKey.trim()) {
+        setPinStatus("Enter your OpenRouter API key.");
+        return;
+      }
+      const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: openRouterKey.trim() }),
+      });
+      if (!res.ok) {
+        setPinStatus(`Failed to save AI key (${res.status})`);
+        return;
+      }
+      setKeyConfigured(true);
+      setOpenRouterKey("");
+      setPinStatus("AI key settings saved.");
+    } catch {
+      setPinStatus("Failed to update AI key settings.");
     }
-    localStorage.setItem(USE_USER_OPENROUTER_KEY_STORAGE, String(useOwnKey));
-    localStorage.setItem(USER_OPENROUTER_KEY_STORAGE, openRouterKey.trim());
-    localStorage.setItem(USER_OPENROUTER_BASE_STORAGE, openRouterBase.trim());
-    setPinStatus("AI key settings saved.");
   };
 
   const heading =
@@ -466,7 +507,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
             <div style={{ padding: "12px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)" }}>
               <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>AI API Key (OpenRouter)</h3>
               <p style={{ margin: "0 0 12px 0", color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
-                Your key is stored only on this device. Set a device PIN to access or change it.
+                Your key is saved securely on the server (encrypted). Set a device PIN to unlock this form.
               </p>
 
               {!hasPin && (
@@ -517,13 +558,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                       onChange={(e) => setOpenRouterKey(e.target.value)}
                       placeholder="OpenRouter API key"
                     />
-                    <input
-                      type="text"
-                      value={openRouterBase}
-                      onChange={(e) => setOpenRouterBase(e.target.value)}
-                      placeholder="OpenRouter base URL (optional)"
-                    />
-                    <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px" }}>
                       <button
                         type="button"
                         className="button-secondary"
@@ -531,11 +566,14 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                       >
                         {showKey ? "Hide Key" : "Show Key"}
                       </button>
-                      <button type="button" onClick={saveUserKey}>
-                        Save
-                      </button>
-                    </div>
-                  </div>
+                  <button type="button" onClick={saveUserKey}>
+                    Save
+                  </button>
+                </div>
+                <p style={{ margin: "4px 0 0 0", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                  Base URL is fixed to OpenRouter. {keyConfigured ? "Custom key is configured." : "Using server key."}
+                </p>
+              </div>
 
                   {!showPinChange ? (
                     <button

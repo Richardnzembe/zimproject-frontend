@@ -173,12 +173,9 @@ export default function SharedAccess({ token, onNavigate }) {
     setLoading(true);
     setError("");
     try {
-      const headers = {};
-      const auth = getAuthToken();
-      if (auth) {
-        headers.Authorization = `Bearer ${auth}`;
-      }
-      const res = await fetch(`${getApiBaseUrl()}/api/share/links/${token}/`, { headers });
+      const res = await fetch(`${getApiBaseUrl()}/api/share/links/${token}/`, {
+        credentials: "include",
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         if (res.status === 401) {

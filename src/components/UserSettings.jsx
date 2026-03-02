@@ -9,9 +9,6 @@ import {
 } from "../lib/api";
 
 const PIN_STORAGE_KEY = "notex_device_pin_hash";
-const USER_OPENROUTER_KEY_STORAGE = "notex_openrouter_key";
-const USER_OPENROUTER_BASE_STORAGE = "notex_openrouter_base";
-const USE_USER_OPENROUTER_KEY_STORAGE = "notex_use_user_openrouter";
 
 const hashPin = async (value) => {
   const data = new TextEncoder().encode(value);
@@ -34,15 +31,9 @@ export default function UserSettings({ onClose }) {
   const [pinUnlock, setPinUnlock] = useState("");
   const [showPinChange, setShowPinChange] = useState(false);
   const [pinChange, setPinChange] = useState({ current: "", next: "", confirm: "" });
-  const [useOwnKey, setUseOwnKey] = useState(
-    localStorage.getItem(USE_USER_OPENROUTER_KEY_STORAGE) === "true"
-  );
-  const [openRouterKey, setOpenRouterKey] = useState(
-    localStorage.getItem(USER_OPENROUTER_KEY_STORAGE) || ""
-  );
-  const [openRouterBase, setOpenRouterBase] = useState(
-    localStorage.getItem(USER_OPENROUTER_BASE_STORAGE) || ""
-  );
+  const [useOwnKey, setUseOwnKey] = useState(false);
+  const [openRouterKey, setOpenRouterKey] = useState("");
+  const [keyConfigured, setKeyConfigured] = useState(false);
   const [showKey, setShowKey] = useState(false);
 
   const token = getAuthToken();
@@ -50,6 +41,27 @@ export default function UserSettings({ onClose }) {
   const username = payload?.username || payload?.user_name || "User";
   const userId = getAuthUserId();
   const hasPin = Boolean(localStorage.getItem(PIN_STORAGE_KEY));
+
+  useEffect(() => {
+    if (!token) return;
+    let isActive = true;
+    const loadAiKeyState = async () => {
+      try {
+        const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`);
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !isActive) return;
+        const configured = Boolean(data?.configured);
+        setUseOwnKey(configured);
+        setKeyConfigured(configured);
+      } catch {
+        // Keep defaults on transient failures.
+      }
+    };
+    loadAiKeyState();
+    return () => {
+      isActive = false;
+    };
+  }, [token]);
 
   const setDevicePin = async () => {
     setPinStatus("");
@@ -106,16 +118,39 @@ export default function UserSettings({ onClose }) {
     setPinStatus("PIN updated.");
   };
 
-  const saveUserKey = () => {
+  const saveUserKey = async () => {
     setPinStatus("");
-    if (useOwnKey && !openRouterKey.trim()) {
-      setPinStatus("Enter your OpenRouter API key or disable the toggle.");
-      return;
+    try {
+      if (!useOwnKey) {
+        const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`, { method: "DELETE" });
+        if (!res.ok) {
+          setPinStatus(`Failed to remove AI key (${res.status})`);
+          return;
+        }
+        setKeyConfigured(false);
+        setOpenRouterKey("");
+        setPinStatus("AI key removed.");
+        return;
+      }
+      if (!openRouterKey.trim()) {
+        setPinStatus("Enter your OpenRouter API key.");
+        return;
+      }
+      const res = await authFetch(`${getApiBaseUrl()}/api/ai/user-key/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: openRouterKey.trim() }),
+      });
+      if (!res.ok) {
+        setPinStatus(`Failed to save AI key (${res.status})`);
+        return;
+      }
+      setKeyConfigured(true);
+      setOpenRouterKey("");
+      setPinStatus("AI key settings saved.");
+    } catch {
+      setPinStatus("Failed to update AI key settings.");
     }
-    localStorage.setItem(USE_USER_OPENROUTER_KEY_STORAGE, String(useOwnKey));
-    localStorage.setItem(USER_OPENROUTER_KEY_STORAGE, openRouterKey.trim());
-    localStorage.setItem(USER_OPENROUTER_BASE_STORAGE, openRouterBase.trim());
-    setPinStatus("AI key settings saved.");
   };
 
   const handleResetPassword = async () => {
@@ -234,7 +269,7 @@ export default function UserSettings({ onClose }) {
         }}>
           <h3 style={{ margin: "0 0 8px 0", fontSize: "1rem" }}>AI API Key (OpenRouter)</h3>
           <p style={{ margin: "0 0 12px 0", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-            Your key is stored only on this device. Set a device PIN to access or change it.
+            Your key is saved securely on the server (encrypted). Set a device PIN to unlock this form.
           </p>
 
           {!hasPin && (
@@ -285,12 +320,6 @@ export default function UserSettings({ onClose }) {
                   onChange={(e) => setOpenRouterKey(e.target.value)}
                   placeholder="OpenRouter API key"
                 />
-                <input
-                  type="text"
-                  value={openRouterBase}
-                  onChange={(e) => setOpenRouterBase(e.target.value)}
-                  placeholder="OpenRouter base URL (optional)"
-                />
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     type="button"
@@ -303,6 +332,9 @@ export default function UserSettings({ onClose }) {
                     Save
                   </button>
                 </div>
+                <p style={{ margin: "4px 0 0 0", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                  Base URL is fixed to OpenRouter. {keyConfigured ? "Custom key is configured." : "Using server key."}
+                </p>
               </div>
 
               {!showPinChange ? (
