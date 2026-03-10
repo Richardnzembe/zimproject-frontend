@@ -1985,6 +1985,53 @@ textarea {
   }
 }
 
+@media (max-width: 540px) {
+  .chat-format ul,
+  .chat-format ol {
+    margin-left: 14px;
+  }
+
+  .ai-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ai-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .ai-composer-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .ai-inline-controls {
+    position: static;
+    transform: none;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ai-mode-button {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .ai-composer-textarea {
+    padding: 10px 52px 10px 12px;
+    min-height: 44px;
+  }
+
+  .ai-send-button {
+    top: auto;
+    bottom: 12px;
+    transform: none;
+  }
+}
+
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;

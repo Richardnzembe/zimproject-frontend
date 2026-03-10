@@ -974,8 +974,8 @@ export default function AIChat({ onNavigate }) {
         return;
       }
 
-      const orderedMatch = line.match(/^\d+\.\s+/);
-      const bulletMatch = line.match(/^[-*]\s+/);
+      const orderedMatch = line.match(/^\s*\d+([.)]|[:\-])\s*/);
+      const bulletMatch = line.match(/^\s*[-*•]\s+/);
 
       if (orderedMatch) {
         flushParagraph();
@@ -983,7 +983,7 @@ export default function AIChat({ onNavigate }) {
           flushList();
           listType = "ol";
         }
-        listBuffer.push(normalizeLine(line.replace(/^\d+\.\s+/, "")));
+        listBuffer.push(normalizeLine(line.replace(/^\s*\d+([.)]|[:\-])\s*/, "")));
         return;
       }
 
@@ -993,7 +993,7 @@ export default function AIChat({ onNavigate }) {
           flushList();
           listType = "ul";
         }
-        listBuffer.push(normalizeLine(line.replace(/^[-*]\s+/, "")));
+        listBuffer.push(normalizeLine(line.replace(/^\s*[-*•]\s+/, "")));
         return;
       }
 
