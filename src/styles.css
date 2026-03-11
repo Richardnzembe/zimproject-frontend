@@ -29,7 +29,7 @@
   --radius-xl: 16px;
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
-  --font-sans: "Manrope", "Segoe UI", Arial, sans-serif;
+  --font-sans: "Manrope", "Segoe UI", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
   --font-display: "Fraunces", "Times New Roman", serif;
   --surface-glass: rgba(255, 255, 255, 0.9);
   --muted-button-bg: #f3f4f6;
@@ -1712,6 +1712,33 @@ textarea {
   backdrop-filter: blur(10px);
 }
 
+.ai-main.header-hidden .ai-messages {
+  padding-top: 24px;
+}
+
+.ai-header-restore {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 16px;
+  z-index: 85;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+}
+
+.ai-header-restore:hover {
+  background: var(--background-color);
+  color: var(--text-primary);
+}
+
 .ai-header-title {
   font-size: 0.95rem;
   font-weight: 600;
@@ -1880,6 +1907,62 @@ textarea {
   align-items: center;
   gap: 8px;
   z-index: 2;
+}
+
+.ai-emoji-wrap {
+  position: relative;
+}
+
+.ai-emoji-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  box-shadow: none;
+  padding: 0;
+}
+
+.ai-emoji-button:hover {
+  background: var(--background-color);
+  color: var(--text-primary);
+}
+
+.ai-emoji-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  box-shadow: var(--shadow-lg);
+  z-index: 120;
+}
+
+.ai-emoji-item {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.ai-emoji-item:hover {
+  background: var(--background-color);
+  border-color: var(--border-color);
 }
 
 .ai-mode-button {

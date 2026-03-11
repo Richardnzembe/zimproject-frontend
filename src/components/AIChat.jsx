@@ -128,6 +128,15 @@ const ChatIcon = () => (
 );
 
 const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
+const AI_HEADER_VISIBILITY_STORAGE = "notex_ai_header_visible";
+const COMMON_EMOJIS = [
+  "\u{1F642}", // 🙂
+  "\u2705",    // ✅
+  "\u2728",    // ✨
+  "\u{1F4CC}", // 📌
+  "\u{1F9E0}", // 🧠
+  "\u{1F525}", // 🔥
+];
 const FREE_OPENROUTER_MODELS = [
   { value: "auto", label: "Auto (OpenRouter default)" },
   { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
@@ -155,6 +164,12 @@ export default function AIChat({ onNavigate }) {
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [projectOptionsOpen, setProjectOptionsOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(() => {
+    const stored = localStorage.getItem(AI_HEADER_VISIBILITY_STORAGE);
+    if (stored === null) return true;
+    return stored === "true";
+  });
   const [shareStatus, setShareStatus] = useState("");
   const [modelStatus, setModelStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
@@ -166,6 +181,7 @@ export default function AIChat({ onNavigate }) {
   const inputRef = useRef(null);
   const headerMenuRef = useRef(null);
   const modeMenuRef = useRef(null);
+  const emojiMenuRef = useRef(null);
 
   function getSessionTitle(item) {
     const modeType = item.mode || "general";
@@ -326,10 +342,14 @@ export default function AIChat({ onNavigate }) {
 
   useEffect(() => {
     const closeModeMenuOnOutsideClick = (event) => {
-      if (!modeMenuRef.current) return;
-      if (!modeMenuRef.current.contains(event.target)) {
+      const clickedInsideMode =
+        modeMenuRef.current && modeMenuRef.current.contains(event.target);
+      const clickedInsideEmoji =
+        emojiMenuRef.current && emojiMenuRef.current.contains(event.target);
+      if (!clickedInsideMode && !clickedInsideEmoji) {
         setModeMenuOpen(false);
         setProjectOptionsOpen(false);
+        setEmojiMenuOpen(false);
       }
     };
 
@@ -337,6 +357,7 @@ export default function AIChat({ onNavigate }) {
       if (event.key === "Escape") {
         setModeMenuOpen(false);
         setProjectOptionsOpen(false);
+        setEmojiMenuOpen(false);
       }
     };
 
@@ -799,6 +820,13 @@ export default function AIChat({ onNavigate }) {
     }
   };
 
+  const insertEmoji = (emoji) => {
+    if (!emoji) return;
+    setInput((prev) => (prev ? `${prev}${emoji}` : emoji));
+    setEmojiMenuOpen(false);
+    inputRef.current?.focus();
+  };
+
   const insertExtractedText = (text) => {
     if (!text) return;
     setInput((prev) => (prev ? `${prev}\n${text}` : text));
@@ -922,6 +950,8 @@ export default function AIChat({ onNavigate }) {
     let paragraph = [];
     let listBuffer = [];
     let listType = null;
+    const orderedRegex = /^\s*\d+([.)]|[:\-])\s*/;
+    const bulletRegex = /^\s*[-*\u2022]\s+/;
 
     const normalizeLine = (value) => {
       const cleaned = value.replace(/\s+/g, " ").trim();
@@ -948,9 +978,18 @@ export default function AIChat({ onNavigate }) {
       }
     };
 
-    lines.forEach((raw) => {
+    lines.forEach((raw, index) => {
       const line = raw.trim();
       if (!line) {
+        if (listType) {
+          const nextLine = lines.slice(index + 1).find((entry) => entry.trim());
+          if (nextLine) {
+            const trimmedNext = nextLine.trim();
+            if (orderedRegex.test(trimmedNext) || bulletRegex.test(trimmedNext)) {
+              return;
+            }
+          }
+        }
         flushParagraph();
         flushList();
         return;
@@ -974,8 +1013,8 @@ export default function AIChat({ onNavigate }) {
         return;
       }
 
-      const orderedMatch = line.match(/^\s*\d+([.)]|[:\-])\s*/);
-      const bulletMatch = line.match(/^\s*[-*•]\s+/);
+      const orderedMatch = line.match(orderedRegex);
+      const bulletMatch = line.match(bulletRegex);
 
       if (orderedMatch) {
         flushParagraph();
@@ -983,7 +1022,7 @@ export default function AIChat({ onNavigate }) {
           flushList();
           listType = "ol";
         }
-        listBuffer.push(normalizeLine(line.replace(/^\s*\d+([.)]|[:\-])\s*/, "")));
+        listBuffer.push(normalizeLine(line.replace(orderedRegex, "")));
         return;
       }
 
@@ -993,7 +1032,7 @@ export default function AIChat({ onNavigate }) {
           flushList();
           listType = "ul";
         }
-        listBuffer.push(normalizeLine(line.replace(/^\s*[-*•]\s+/, "")));
+        listBuffer.push(normalizeLine(line.replace(bulletRegex, "")));
         return;
       }
 
@@ -1274,109 +1313,133 @@ export default function AIChat({ onNavigate }) {
 
       {/* Main content */}
       <main
-        className="ai-main"
+        className={`ai-main ${headerVisible ? "" : "header-hidden"}`}
         style={{
           marginLeft: sidebarOpen && !isMobile ? "260px" : "0",
         }}
       >
         {/* Header with toggle button */}
-        <header className="ai-header">
+        {headerVisible && (
+          <header className="ai-header">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "40px",
+                height: "40px",
+                background: "var(--muted-button-bg)",
+                border: "1px solid var(--muted-button-border)",
+                borderRadius: "8px",
+                color: "var(--text-secondary)",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "var(--muted-button-bg-hover)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "var(--muted-button-bg)";
+              }}
+            >
+              {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
+            </button>
+            
+            <div className="ai-header-actions">
+              <div className="ai-header-model-wrap">
+                <span className="ai-header-model-label">Model</span>
+                <select
+                  className="ai-header-model-select"
+                  value={selectedModel}
+                  onChange={(e) => {
+                    const nextModel = e.target.value;
+                    setSelectedModel(nextModel);
+                    localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
+                  }}
+                  title="Select model"
+                  aria-label="Select OpenRouter model"
+                >
+                  {modelOptions.map((modelOption) => (
+                    <option key={modelOption.value} value={modelOption.value}>
+                      {modelOption.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <ThemeToggle compact iconOnly />
+              <div ref={headerMenuRef} style={{ position: "relative" }}>
+                <button
+                  className="theme-toggle compact"
+                  onClick={() => setHeaderMenuOpen((prev) => !prev)}
+                  aria-expanded={headerMenuOpen}
+                  aria-label="Open header actions"
+                  type="button"
+                >
+                  Menu
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                {headerMenuOpen && (
+                  <div
+                    className="mode-dropdown-menu"
+                    style={{
+                      right: 0,
+                      left: "auto",
+                      top: "calc(100% + 8px)",
+                      minWidth: "210px",
+                      zIndex: 120,
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        createShareLink("read", currentSessionId);
+                        setHeaderMenuOpen(false);
+                      }}
+                      disabled={isNewChat}
+                      title="Share read-only link"
+                    >
+                      Share
+                    </button>
+                    <button
+                      onClick={() => {
+                        createShareLink("collab", currentSessionId);
+                        setHeaderMenuOpen(false);
+                      }}
+                      disabled={isNewChat}
+                      title="Create collaboration link"
+                    >
+                      Collaborate
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHeaderVisible(false);
+                        localStorage.setItem(AI_HEADER_VISIBILITY_STORAGE, "false");
+                        setHeaderMenuOpen(false);
+                      }}
+                    >
+                      Hide top bar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+        )}
+        {!headerVisible && (
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "40px",
-              height: "40px",
-              background: "var(--muted-button-bg)",
-              border: "1px solid var(--muted-button-border)",
-              borderRadius: "8px",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "var(--muted-button-bg-hover)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "var(--muted-button-bg)";
+            className="ai-header-restore"
+            type="button"
+            onClick={() => {
+              setHeaderVisible(true);
+              localStorage.setItem(AI_HEADER_VISIBILITY_STORAGE, "true");
             }}
           >
-            {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
+            Show top bar
+            <ChevronRightIcon />
           </button>
-          
-          <div className="ai-header-actions">
-            <div className="ai-header-model-wrap">
-              <span className="ai-header-model-label">Model</span>
-              <select
-                className="ai-header-model-select"
-                value={selectedModel}
-                onChange={(e) => {
-                  const nextModel = e.target.value;
-                  setSelectedModel(nextModel);
-                  localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, nextModel);
-                }}
-                title="Select model"
-                aria-label="Select OpenRouter model"
-              >
-                {modelOptions.map((modelOption) => (
-                  <option key={modelOption.value} value={modelOption.value}>
-                    {modelOption.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <ThemeToggle compact iconOnly />
-            <div ref={headerMenuRef} style={{ position: "relative" }}>
-              <button
-                className="theme-toggle compact"
-                onClick={() => setHeaderMenuOpen((prev) => !prev)}
-                aria-expanded={headerMenuOpen}
-                aria-label="Open header actions"
-                type="button"
-              >
-                Menu
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </button>
-              {headerMenuOpen && (
-                <div
-                  className="mode-dropdown-menu"
-                  style={{
-                    right: 0,
-                    left: "auto",
-                    top: "calc(100% + 8px)",
-                    minWidth: "210px",
-                    zIndex: 120,
-                  }}
-                >
-                <button
-                  onClick={() => {
-                    createShareLink("read", currentSessionId);
-                    setHeaderMenuOpen(false);
-                  }}
-                  disabled={isNewChat}
-                  title="Share read-only link"
-                >
-                  Share
-                </button>
-                <button
-                  onClick={() => {
-                    createShareLink("collab", currentSessionId);
-                    setHeaderMenuOpen(false);
-                  }}
-                  disabled={isNewChat}
-                  title="Create collaboration link"
-                >
-                  Collaborate
-                </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        )}
         {shareStatus && (
           <div style={{ padding: "6px 20px", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
             {shareStatus}
@@ -1564,6 +1627,31 @@ export default function AIChat({ onNavigate }) {
           <div className="ai-composer-inner">
             <div className="ai-inline-controls" ref={modeMenuRef}>
               <ImageToText onExtract={insertExtractedText} variant="icon" showStatus={false} className="ai-image-import" />
+              <div className="ai-emoji-wrap" ref={emojiMenuRef}>
+                <button
+                  className="ai-emoji-button"
+                  type="button"
+                  onClick={() => setEmojiMenuOpen((prev) => !prev)}
+                  aria-expanded={emojiMenuOpen}
+                  aria-label="Insert emoji"
+                >
+                  {"\u{1F642}"}
+                </button>
+                {emojiMenuOpen && (
+                  <div className="ai-emoji-menu">
+                    {COMMON_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className="ai-emoji-item"
+                        onClick={() => insertEmoji(emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 className="ai-mode-button"
                 onClick={() => setModeMenuOpen((prev) => !prev)}
