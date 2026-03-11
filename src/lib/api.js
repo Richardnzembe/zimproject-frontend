@@ -8,6 +8,7 @@ const USER_ID_STORAGE_KEY = "notex_user_id";
 let isAuthenticated = false;
 let refreshPromise = null;
 let userIdentityPromise = null;
+let csrfTokenCache = "";
 
 function normalizeApiBaseUrl(url) {
   return url.replace(/\/+$/, "");
@@ -41,13 +42,33 @@ function isUnsafeMethod(method) {
 }
 
 async function ensureCsrfToken() {
+  if (csrfTokenCache) return csrfTokenCache;
   const current = getCookie("csrftoken");
-  if (current) return current;
-  await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
-    method: "GET",
-    credentials: "include",
-  });
-  return getCookie("csrftoken");
+  if (current) {
+    csrfTokenCache = current;
+    return current;
+  }
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/csrf/`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      const token = data?.csrfToken || "";
+      if (token) {
+        csrfTokenCache = token;
+        return token;
+      }
+    }
+  } catch {
+    // Best effort: fall through to cookie fallback.
+  }
+  const fallback = getCookie("csrftoken");
+  if (fallback) {
+    csrfTokenCache = fallback;
+  }
+  return csrfTokenCache;
 }
 
 async function hydrateUserIdentity() {
@@ -164,12 +185,16 @@ export async function refreshAccessToken() {
         },
         body: "{}",
       });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         isAuthenticated = false;
         userIdentityPromise = null;
         localStorage.removeItem(USER_ID_STORAGE_KEY);
         window.dispatchEvent(new Event("auth-changed"));
         return false;
+      }
+      if (data?.csrfToken) {
+        csrfTokenCache = data.csrfToken;
       }
       isAuthenticated = true;
       await ensureUserIdentity(true);
