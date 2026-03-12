@@ -213,7 +213,7 @@ export default function AIChat({ onNavigate }) {
       {
         id: "welcome",
         role: "assistant",
-        content: "Hello! I'm Notex AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
+        content: "Hi! 👋 I'm Notex AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -246,7 +246,7 @@ export default function AIChat({ onNavigate }) {
       reconstructedMessages.push({
         id: "welcome",
         role: "assistant",
-        content: "Hello! I'm Notex AI, your AI study assistant. You can ask me questions, get help with your notes, summarize content, or work on projects. How can I help you today?",
+        content: "Hi! 👋 I'm Notex AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
         timestamp: new Date().toISOString(),
       });
     }

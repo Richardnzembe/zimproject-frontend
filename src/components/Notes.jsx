@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ImageToText from "./ImageToText";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
 import {
@@ -43,6 +43,20 @@ const FREE_OPENROUTER_MODELS = [
   { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
 ];
 
+const hasHtmlTags = (value) => /<[^>]+>/.test(value || "");
+
+const normalizeContentForEditor = (value) => {
+  if (!value) return "";
+  return hasHtmlTags(value) ? value : value.replace(/\n/g, "<br />");
+};
+
+const stripHtml = (value) => (value ? value.replace(/<[^>]*>/g, "") : "");
+
+const renderNoteContent = (value) => {
+  if (!value) return "";
+  return hasHtmlTags(value) ? value : value.replace(/\n/g, "<br />");
+};
+
 const Notes = ({ onOpenAI }) => {
   const [notes, setNotes] = useState([]);
   const [status, setStatus] = useState("");
@@ -58,11 +72,21 @@ const Notes = ({ onOpenAI }) => {
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfo, setShareInfo] = useState([]);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
-  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [editorNonce, setEditorNonce] = useState(0);
+  const [shareDialog, setShareDialog] = useState({
+    open: false,
+    permission: "read",
+    url: "",
+    status: "",
+    loading: false,
+    noteTitle: "",
+    noteId: null,
+  });
   const [selectedModel, setSelectedModel] = useState(() => {
     const stored = (getUserOpenRouterModel() || "").trim();
     return stored || "auto";
   });
+  const editorRef = useRef(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -187,10 +211,9 @@ const Notes = ({ onOpenAI }) => {
     }
   };
 
-  const createShareLink = async (permission, noteId) => {
+  const generateShareLink = async (permission, noteId, { autoCopy = false } = {}) => {
     if (!noteId) {
-      setShareStatus("Please sync the note before sharing.");
-      return;
+      return { error: "Please sync the note before sharing." };
     }
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/links/create/`, {
@@ -204,19 +227,88 @@ const Notes = ({ onOpenAI }) => {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to create share link.");
-        return;
+        return { error: data?.detail || "Unable to create share link." };
       }
-      setShareInfo((prev) => [
-        ...prev.filter((s) => s.permission !== permission),
-        data,
-      ]);
+      if (activeNote?.server_id === noteId) {
+        setShareInfo((prev) => [
+          ...prev.filter((s) => s.permission !== permission),
+          data,
+        ]);
+      }
       const url = `${window.location.origin}?share=${data.token}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus("Share link copied.");
-      setTimeout(() => setShareStatus(""), 2500);
+      if (autoCopy) {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("Share link copied.");
+        setTimeout(() => setShareStatus(""), 2500);
+      }
+      return { url, data };
     } catch {
-      setShareStatus("Unable to create share link.");
+      return { error: "Unable to create share link." };
+    }
+  };
+
+  const openShareDialog = async (note, permission) => {
+    if (!note?.server_id) {
+      setShareStatus("Please sync the note before sharing.");
+      return;
+    }
+    setShareDialog({
+      open: true,
+      permission,
+      url: "",
+      status: "Generating link...",
+      loading: true,
+      noteTitle: note.title,
+      noteId: note.server_id,
+    });
+    const result = await generateShareLink(permission, note.server_id);
+    if (result?.url) {
+      setShareDialog((prev) => ({
+        ...prev,
+        url: result.url,
+        status: "",
+        loading: false,
+      }));
+      return;
+    }
+    setShareDialog((prev) => ({
+      ...prev,
+      status: result?.error || "Unable to create share link.",
+      loading: false,
+    }));
+  };
+
+  const closeShareDialog = () => {
+    setShareDialog((prev) => ({
+      ...prev,
+      open: false,
+      url: "",
+      status: "",
+      loading: false,
+      noteTitle: "",
+      noteId: null,
+    }));
+  };
+
+  const copyShareLink = async () => {
+    if (!shareDialog.url) return;
+    try {
+      await navigator.clipboard.writeText(shareDialog.url);
+      setShareDialog((prev) => ({
+        ...prev,
+        status: "Share link copied.",
+      }));
+      setTimeout(() => {
+        setShareDialog((prev) => ({
+          ...prev,
+          status: "",
+        }));
+      }, 2000);
+    } catch {
+      setShareDialog((prev) => ({
+        ...prev,
+        status: "Unable to copy share link.",
+      }));
     }
   };
 
@@ -446,7 +538,6 @@ const Notes = ({ onOpenAI }) => {
   useEffect(() => {
     const closeMenus = () => {
       setOpenActionMenuId(null);
-      setShareMenuOpen(false);
     };
     document.addEventListener("click", closeMenus);
     return () => document.removeEventListener("click", closeMenus);
@@ -455,12 +546,40 @@ const Notes = ({ onOpenAI }) => {
   const insertExtractedText = (text) => {
     setForm((prev) => ({
       ...prev,
-      content: prev.content + (prev.content ? "\n\n" : "") + text,
+      content: `${prev.content || ""}${prev.content ? "<br /><br />" : ""}${normalizeContentForEditor(text)}`,
+    }));
+    setEditorNonce((prev) => prev + 1);
+  };
+
+  const applyEditorCommand = (command, value = null) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand(command, false, value);
+    setForm((prev) => ({
+      ...prev,
+      content: editorRef.current.innerHTML,
+    }));
+  };
+
+  const handleEditorInput = (event) => {
+    const html = event.currentTarget.innerHTML;
+    const cleaned = html.replace(/\u00a0/g, " ").trim();
+    const normalized =
+      cleaned === "<br>" ||
+      cleaned === "<div><br></div>" ||
+      cleaned === "<p><br></p>" ||
+      cleaned === ""
+        ? ""
+        : html;
+    setForm((prev) => ({
+      ...prev,
+      content: normalized,
     }));
   };
 
   const saveNote = async () => {
-    if (!form.title || !form.content) return;
+    const contentText = stripHtml(form.content).replace(/\u00a0/g, " ").trim();
+    if (!form.title || !contentText) return;
 
     const token = getAuthToken();
     const userId = getAuthUserId() || (await ensureAuthUserId());
@@ -520,6 +639,7 @@ const Notes = ({ onOpenAI }) => {
       tags: "",
       content: "",
     });
+    setEditorNonce((prev) => prev + 1);
 
     await syncPendingNotes();
   };
@@ -531,8 +651,9 @@ const Notes = ({ onOpenAI }) => {
       subject: note.subject,
       category: note.category,
       tags: normalizeTags(note.tags).join(", "),
-      content: note.content,
+      content: normalizeContentForEditor(note.content),
     });
+    setEditorNonce((prev) => prev + 1);
   };
 
   const deleteNote = async (localId) => {
@@ -622,7 +743,7 @@ const Notes = ({ onOpenAI }) => {
     (note) =>
       note.pending_action !== "delete" &&
       (note.title.toLowerCase().includes(search.toLowerCase()) ||
-        note.content.toLowerCase().includes(search.toLowerCase())) &&
+        stripHtml(note.content).toLowerCase().includes(search.toLowerCase())) &&
       (filterSubject === "" || note.subject === filterSubject)
   );
 
@@ -731,11 +852,108 @@ const Notes = ({ onOpenAI }) => {
           />
         </div>
 
-        <textarea
-          placeholder="Write your note content here..."
-          value={form.content}
-          onChange={(e) => setForm({ ...form, content: e.target.value })}
-          style={{ minHeight: "150px", marginTop: "12px" }}
+        <div className="notes-editor-toolbar" style={{ marginTop: "12px" }}>
+          <div className="notes-editor-group">
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("bold")}
+              aria-label="Bold"
+              title="Bold"
+            >
+              <strong>B</strong>
+            </button>
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("italic")}
+              aria-label="Italic"
+              title="Italic"
+            >
+              <em>I</em>
+            </button>
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("underline")}
+              aria-label="Underline"
+              title="Underline"
+            >
+              <span style={{ textDecoration: "underline" }}>U</span>
+            </button>
+          </div>
+          <div className="notes-editor-group">
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("insertUnorderedList")}
+              aria-label="Bulleted list"
+              title="Bulleted list"
+            >
+              • List
+            </button>
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("insertOrderedList")}
+              aria-label="Numbered list"
+              title="Numbered list"
+            >
+              1. List
+            </button>
+          </div>
+          <div className="notes-editor-group">
+            <select
+              className="notes-toolbar-select"
+              defaultValue="p"
+              onChange={(e) => {
+                applyEditorCommand("formatBlock", e.target.value);
+                e.target.value = "p";
+              }}
+              aria-label="Text style"
+              title="Text style"
+            >
+              <option value="p">Normal</option>
+              <option value="h1">Heading 1</option>
+              <option value="h2">Heading 2</option>
+              <option value="h3">Heading 3</option>
+            </select>
+            <select
+              className="notes-toolbar-select"
+              defaultValue="Manrope"
+              onChange={(e) => applyEditorCommand("fontName", e.target.value)}
+              aria-label="Font"
+              title="Font"
+            >
+              <option value="Manrope">Manrope</option>
+              <option value="Fraunces">Fraunces</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Arial">Arial</option>
+            </select>
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("removeFormat")}
+              aria-label="Clear formatting"
+              title="Clear formatting"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div
+          key={`editor-${editingId || "new"}-${editorNonce}`}
+          ref={editorRef}
+          className="notes-editor"
+          contentEditable
+          role="textbox"
+          aria-multiline="true"
+          data-placeholder="Write your note content here..."
+          onInput={handleEditorInput}
+          suppressContentEditableWarning
+          dangerouslySetInnerHTML={{ __html: form.content || "" }}
         />
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", marginTop: "16px" }}>
@@ -755,6 +973,7 @@ const Notes = ({ onOpenAI }) => {
                   tags: "",
                   content: "",
                 });
+                setEditorNonce((prev) => prev + 1);
               }}
             >
               Cancel
@@ -775,138 +994,141 @@ const Notes = ({ onOpenAI }) => {
             </p>
           </div>
         ) : (
-          visibleNotes.map((note) => (
-            <div
-              key={note.local_id}
-              className="note-card"
-              onClick={() => {
-                setOpenActionMenuId(null);
-                setActiveNote(note);
-              }}
-            >
-              <div className="note-card-header">
-                <h3 className="note-card-title">{note.title}</h3>
-                <span style={{ 
-                  fontSize: "0.75rem", 
-                  padding: "4px 8px", 
-                  background: "var(--primary-light)", 
-                  color: "var(--primary-color)", 
-                  borderRadius: "4px" 
-                }}>
-                  {note.category}
-                </span>
-              </div>
-              
-              <div className="note-card-meta">
-                {note.subject && <span>{note.subject}</span>}
-                <span>-</span>
-                <span>
-                  {note.created_at 
-                    ? new Date(note.created_at).toLocaleDateString() 
-                    : ""}
-                </span>
-              </div>
-
-              <p className="note-card-preview">
-                {note.content.slice(0, 150)}
-                {note.content.length > 150 && "..."}
-              </p>
-
-              {normalizeTags(note.tags).length > 0 && (
-                <div className="tags">
-                  {normalizeTags(note.tags).slice(0, 5).map((t, i) => (
-                    <span key={i} className="tag">#{t}</span>
-                  ))}
-                  {normalizeTags(note.tags).length > 5 && (
-                    <span className="tag">+{normalizeTags(note.tags).length - 5}</span>
-                  )}
-                </div>
-              )}
-
-              <div 
-                className="note-card-actions" 
-                onClick={(e) => e.stopPropagation()}
-                style={{ display: "flex", gap: "8px" }}
+          visibleNotes.map((note) => {
+            const previewText = stripHtml(note.content || "");
+            return (
+              <div
+                key={note.local_id}
+                className="note-card"
+                onClick={() => {
+                  setOpenActionMenuId(null);
+                  setActiveNote(note);
+                }}
               >
-                <div
-                  className={`dropdown ${openActionMenuId === note.local_id ? "open" : ""}`}
+                <div className="note-card-header">
+                  <h3 className="note-card-title">{note.title}</h3>
+                  <span style={{ 
+                    fontSize: "0.75rem", 
+                    padding: "4px 8px", 
+                    background: "var(--primary-light)", 
+                    color: "var(--primary-color)", 
+                    borderRadius: "4px" 
+                  }}>
+                    {note.category}
+                  </span>
+                </div>
+                
+                <div className="note-card-meta">
+                  {note.subject && <span>{note.subject}</span>}
+                  <span>-</span>
+                  <span>
+                    {note.created_at 
+                      ? new Date(note.created_at).toLocaleDateString() 
+                      : ""}
+                  </span>
+                </div>
+
+                <p className="note-card-preview">
+                  {previewText.slice(0, 150)}
+                  {previewText.length > 150 && "..."}
+                </p>
+
+                {normalizeTags(note.tags).length > 0 && (
+                  <div className="tags">
+                    {normalizeTags(note.tags).slice(0, 5).map((t, i) => (
+                      <span key={i} className="tag">#{t}</span>
+                    ))}
+                    {normalizeTags(note.tags).length > 5 && (
+                      <span className="tag">+{normalizeTags(note.tags).length - 5}</span>
+                    )}
+                  </div>
+                )}
+
+                <div 
+                  className="note-card-actions" 
                   onClick={(e) => e.stopPropagation()}
+                  style={{ display: "flex", gap: "8px" }}
                 >
-                  <button
-                    className="button-secondary actions-trigger"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenActionMenuId((prev) => (prev === note.local_id ? null : note.local_id));
-                    }}
-                    style={{ padding: "6px 12px", fontSize: "0.85rem" }}
+                  <div
+                    className={`dropdown ${openActionMenuId === note.local_id ? "open" : ""}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    Actions
-                  </button>
-                  <div className="dropdown-menu note-actions-menu">
                     <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        editNote(note);
-                        setOpenActionMenuId(null);
+                      className="button-secondary actions-trigger"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenActionMenuId((prev) => (prev === note.local_id ? null : note.local_id));
                       }}
+                      style={{ padding: "6px 12px", fontSize: "0.85rem" }}
                     >
-                      Edit
+                      Actions
                     </button>
-                    {deleteConfirmNote?.local_id === note.local_id ? (
-                      <>
+                    <div className="dropdown-menu note-actions-menu">
+                      <button
+                        className="dropdown-item"
+                        onClick={() => {
+                          editNote(note);
+                          setOpenActionMenuId(null);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      {deleteConfirmNote?.local_id === note.local_id ? (
+                        <>
+                          <button
+                            className="dropdown-item danger"
+                            onClick={() => {
+                              deleteNote(note.local_id);
+                              setDeleteConfirmNote(null);
+                              setOpenActionMenuId(null);
+                            }}
+                          >
+                            Confirm delete
+                          </button>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => {
+                              setDeleteConfirmNote(null);
+                              setOpenActionMenuId(null);
+                            }}
+                          >
+                            Cancel delete
+                          </button>
+                        </>
+                      ) : (
                         <button
                           className="dropdown-item danger"
-                          onClick={() => {
-                            deleteNote(note.local_id);
-                            setDeleteConfirmNote(null);
-                            setOpenActionMenuId(null);
-                          }}
+                          onClick={() => setDeleteConfirmNote(note)}
                         >
-                          Confirm delete
+                          Delete
                         </button>
-                        <button
-                          className="dropdown-item"
-                          onClick={() => {
-                            setDeleteConfirmNote(null);
-                            setOpenActionMenuId(null);
-                          }}
-                        >
-                          Cancel delete
-                        </button>
-                      </>
-                    ) : (
+                      )}
                       <button
-                        className="dropdown-item danger"
-                        onClick={() => setDeleteConfirmNote(note)}
+                        className="dropdown-item"
+                        onClick={() => {
+                          openShareDialog(note, "read");
+                          setOpenActionMenuId(null);
+                        }}
+                        disabled={!note.server_id}
                       >
-                        Delete
+                        Share
                       </button>
-                    )}
-                    <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        createShareLink("read", note.server_id);
-                        setOpenActionMenuId(null);
-                      }}
-                      disabled={!note.server_id}
-                    >
-                      Share
-                    </button>
-                    <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        createShareLink("collab", note.server_id);
-                        setOpenActionMenuId(null);
-                      }}
-                      disabled={!note.server_id}
-                    >
-                      Collaborate
-                    </button>
+                      <button
+                        className="dropdown-item"
+                        onClick={() => {
+                          openShareDialog(note, "collab");
+                          setOpenActionMenuId(null);
+                        }}
+                        disabled={!note.server_id}
+                      >
+                        Collaborate
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -925,56 +1147,32 @@ const Notes = ({ onOpenAI }) => {
                 </div>
               </div>
               <div className="notes-reading-toolbar">
-                <div className={`dropdown ${shareMenuOpen ? "open" : ""}`}>
-                  <button
-                    className="notes-reading-btn"
-                    onClick={() => {
-                      setShareMenuOpen((prev) => !prev);
-                    }}
-                  >
-                    Share
-                  </button>
-                  <div className="dropdown-menu note-actions-menu notes-reading-share-menu">
-                    <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        createShareLink("read", activeNote.server_id);
-                        setShareMenuOpen(false);
-                      }}
-                    >
-                      Share
-                    </button>
-                    <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        createShareLink("collab", activeNote.server_id);
-                        setShareMenuOpen(false);
-                      }}
-                    >
-                      Collaborate
-                    </button>
-                    <button
-                      className="dropdown-item"
-                      onClick={() => {
-                        inviteUserToShare(currentShare?.token);
-                        setShareMenuOpen(false);
-                      }}
-                      disabled={!currentShare?.token}
-                    >
-                      Add user
-                    </button>
-                    <button
-                      className="dropdown-item danger"
-                      onClick={() => {
-                        revokeShareLink(currentShare?.token);
-                        setShareMenuOpen(false);
-                      }}
-                      disabled={!currentShare?.token}
-                    >
-                      Revoke link
-                    </button>
-                  </div>
-                </div>
+                <button
+                  className="notes-reading-btn"
+                  onClick={() => openShareDialog(activeNote, "read")}
+                >
+                  Share
+                </button>
+                <button
+                  className="notes-reading-btn"
+                  onClick={() => openShareDialog(activeNote, "collab")}
+                >
+                  Collaborate
+                </button>
+                <button
+                  className="notes-reading-btn"
+                  onClick={() => inviteUserToShare(currentShare?.token)}
+                  disabled={!currentShare?.token}
+                >
+                  Add user
+                </button>
+                <button
+                  className="notes-reading-btn danger"
+                  onClick={() => revokeShareLink(currentShare?.token)}
+                  disabled={!currentShare?.token}
+                >
+                  Revoke link
+                </button>
                 <button
                   className="notes-reading-btn"
                   onClick={() => {
@@ -1053,9 +1251,10 @@ const Notes = ({ onOpenAI }) => {
                 </div>
               )}
 
-              <article className="note-reading-paper">
-                {activeNote.content}
-              </article>
+              <article
+                className="note-reading-paper"
+                dangerouslySetInnerHTML={{ __html: renderNoteContent(activeNote.content) }}
+              />
 
               <section className="notes-ai-panel">
                 <h4 className="notes-ai-title">
@@ -1126,6 +1325,61 @@ const Notes = ({ onOpenAI }) => {
             </div>
           </div>
         </section>
+      )}
+
+      {shareDialog.open && (
+        <div className="notes-share-overlay" onClick={closeShareDialog}>
+          <div className="notes-share-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="notes-share-header">
+              <div>
+                <h3 className="notes-share-title">
+                  {shareDialog.permission === "collab" ? "Collaboration link" : "Share link"}
+                </h3>
+                {shareDialog.noteTitle && (
+                  <p className="notes-share-subtitle">{shareDialog.noteTitle}</p>
+                )}
+              </div>
+              <button
+                className="notes-share-close"
+                onClick={closeShareDialog}
+                aria-label="Close share dialog"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="notes-share-body">
+              {shareDialog.loading ? (
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                </div>
+              ) : (
+                <>
+                  <label className="notes-share-label">Link</label>
+                  <input
+                    type="text"
+                    value={shareDialog.url}
+                    readOnly
+                    onFocus={(e) => e.target.select()}
+                    className="notes-share-input"
+                  />
+                </>
+              )}
+              {shareDialog.status && (
+                <p className="notes-share-status">{shareDialog.status}</p>
+              )}
+            </div>
+
+            <div className="notes-share-actions">
+              <button className="button-secondary" onClick={closeShareDialog}>
+                Cancel
+              </button>
+              <button onClick={copyShareLink} disabled={!shareDialog.url || shareDialog.loading}>
+                Copy link
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

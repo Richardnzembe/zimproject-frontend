@@ -899,6 +899,94 @@ textarea {
   pointer-events: none;
 }
 
+/* ===== Notes Editor ===== */
+.notes-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.notes-editor-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.notes-toolbar-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.notes-toolbar-btn:hover:not(:disabled) {
+  background: var(--background-color);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.notes-toolbar-select {
+  width: auto;
+  min-width: 130px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  font-size: 0.78rem;
+}
+
+.notes-editor {
+  margin-top: 12px;
+  min-height: 180px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  font-family: var(--font-sans);
+}
+
+.notes-editor:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+}
+
+.notes-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+
+.notes-editor h1,
+.notes-editor h2,
+.notes-editor h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+}
+
+.notes-editor ul,
+.notes-editor ol {
+  margin: 0 0 12px 20px;
+  padding: 0;
+}
+
+.notes-editor li {
+  margin-bottom: 6px;
+}
+
 /* ===== Status Messages ===== */
 .status-message {
   padding: 12px 16px;
@@ -2451,6 +2539,95 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* ===== Notes Share Dialog ===== */
+.notes-share-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.notes-share-dialog {
+  width: min(520px, 92vw);
+  background: var(--surface-color);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.notes-share-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notes-share-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.notes-share-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.notes-share-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  box-shadow: none;
+}
+
+.notes-share-close:hover:not(:disabled) {
+  background: var(--background-color);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.notes-share-body {
+  display: grid;
+  gap: 8px;
+}
+
+.notes-share-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.notes-share-input {
+  width: 100%;
+}
+
+.notes-share-status {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.notes-share-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .note-reading-paper {
   width: min(780px, 100%);
   margin: 0 auto 18px;
@@ -2459,10 +2636,40 @@ textarea {
   border: 1px solid color-mix(in srgb, var(--border-color) 75%, #c8ced8 25%);
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   color: #1f2937;
-  white-space: pre-wrap;
+  white-space: normal;
   line-height: 1.85;
   font-size: 1.04rem;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  word-break: break-word;
+}
+
+.note-reading-paper h1 {
+  font-size: 1.6rem;
+  margin: 0 0 14px;
+}
+
+.note-reading-paper h2 {
+  font-size: 1.35rem;
+  margin: 0 0 12px;
+}
+
+.note-reading-paper h3 {
+  font-size: 1.15rem;
+  margin: 0 0 10px;
+}
+
+.note-reading-paper p {
+  margin: 0 0 12px;
+}
+
+.note-reading-paper ul,
+.note-reading-paper ol {
+  margin: 0 0 12px 22px;
+  padding: 0;
+}
+
+.note-reading-paper li {
+  margin-bottom: 6px;
 }
 
 .notes-ai-panel {
