@@ -162,7 +162,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         return;
       }
 
-      await setTokens();
+      await setTokens(data);
       window.dispatchEvent(new Event("auth-changed"));
       setStatus("Logged in successfully!");
     } catch (err) {

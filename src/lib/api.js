@@ -4,6 +4,7 @@ const DEV_API_BASE_URL = "http://localhost:8000";
 const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
 const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
 const USER_ID_STORAGE_KEY = "notex_user_id";
+const AUTH_SESSION_STORAGE_KEY = "notex_auth_session";
 
 let isAuthenticated = false;
 let refreshPromise = null;
@@ -39,6 +40,68 @@ const API_BASE_URL = resolveApiBaseUrl();
 function isUnsafeMethod(method) {
   const safeMethods = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
   return !safeMethods.has((method || "GET").toUpperCase());
+}
+
+function readAuthSession() {
+  const raw = localStorage.getItem(AUTH_SESSION_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeAuthSession(payload) {
+  if (!payload) return;
+  localStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function clearAuthSession() {
+  localStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
+}
+
+function parseExpiry(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function extractSessionMeta(data) {
+  if (!data || typeof data !== "object") return null;
+  const now = Date.now();
+  const accessExpiresAt =
+    parseExpiry(data.access_expires_at) ||
+    (data.access_expires_in
+      ? new Date(now + Number(data.access_expires_in) * 1000).toISOString()
+      : null);
+  const refreshExpiresAt =
+    parseExpiry(data.refresh_expires_at) ||
+    (data.refresh_expires_in
+      ? new Date(now + Number(data.refresh_expires_in) * 1000).toISOString()
+      : null);
+  if (!refreshExpiresAt) return null;
+  return {
+    accessExpiresAt,
+    refreshExpiresAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function hasValidStoredSession() {
+  const session = readAuthSession();
+  if (!session?.refreshExpiresAt) return false;
+  const expiresAt = new Date(session.refreshExpiresAt).getTime();
+  if (Number.isNaN(expiresAt)) {
+    clearAuthSession();
+    return false;
+  }
+  if (Date.now() > expiresAt) {
+    clearAuthSession();
+    return false;
+  }
+  return true;
 }
 
 async function ensureCsrfToken() {
@@ -90,7 +153,7 @@ async function hydrateUserIdentity() {
 }
 
 async function ensureUserIdentity(force = false) {
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated && !hasValidStoredSession()) return null;
   const currentId = getAuthUserId();
   if (currentId && !force) return currentId;
   if (userIdentityPromise) return userIdentityPromise;
@@ -112,11 +175,15 @@ export function getApiBaseUrl() {
 }
 
 export function getAuthToken() {
-  return isAuthenticated;
+  return isAuthenticated || hasValidStoredSession();
 }
 
-export async function setTokens() {
+export async function setTokens(sessionMeta = null) {
   isAuthenticated = true;
+  const payload = extractSessionMeta(sessionMeta);
+  if (payload) {
+    writeAuthSession(payload);
+  }
   await ensureUserIdentity(true);
 }
 
@@ -124,6 +191,7 @@ export async function clearTokens() {
   isAuthenticated = false;
   userIdentityPromise = null;
   localStorage.removeItem(USER_ID_STORAGE_KEY);
+  clearAuthSession();
   try {
     const csrf = await ensureCsrfToken();
     await fetch(`${API_BASE_URL}/api/auth/logout/`, {
@@ -187,23 +255,42 @@ export async function refreshAccessToken() {
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        isAuthenticated = false;
-        userIdentityPromise = null;
-        localStorage.removeItem(USER_ID_STORAGE_KEY);
-        window.dispatchEvent(new Event("auth-changed"));
+        if (res.status === 401 || res.status === 403) {
+          isAuthenticated = false;
+          userIdentityPromise = null;
+          localStorage.removeItem(USER_ID_STORAGE_KEY);
+          clearAuthSession();
+          window.dispatchEvent(new Event("auth-changed"));
+          return false;
+        }
+        if (hasValidStoredSession()) {
+          isAuthenticated = true;
+          window.dispatchEvent(new Event("auth-changed"));
+          return true;
+        }
         return false;
       }
       if (data?.csrfToken) {
         csrfTokenCache = data.csrfToken;
       }
       isAuthenticated = true;
+      const payload = extractSessionMeta(data);
+      if (payload) {
+        writeAuthSession(payload);
+      }
       await ensureUserIdentity(true);
       window.dispatchEvent(new Event("auth-changed"));
       return true;
     } catch {
+      if (hasValidStoredSession()) {
+        isAuthenticated = true;
+        window.dispatchEvent(new Event("auth-changed"));
+        return true;
+      }
       isAuthenticated = false;
       userIdentityPromise = null;
       localStorage.removeItem(USER_ID_STORAGE_KEY);
+      clearAuthSession();
       window.dispatchEvent(new Event("auth-changed"));
       return false;
     } finally {
