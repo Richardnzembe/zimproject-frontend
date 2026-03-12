@@ -169,6 +169,12 @@ export default function SharedAccess({ token, onNavigate }) {
 
   const canCollaborate = permission === "collab" && isAuthed;
 
+  const displayAuthor = (msg) => {
+    if (msg.role !== "user") return "Notex AI";
+    if (msg.user_id && userId && msg.user_id === userId) return "You";
+    return msg.username || "User";
+  };
+
   const fetchShare = async () => {
     setLoading(true);
     setError("");
@@ -416,7 +422,7 @@ export default function SharedAccess({ token, onNavigate }) {
                 </div>
                 <div className="chat-message-content">
                   <div className="chat-message-role">
-                    {msg.role === "user" ? msg.username || "User" : "Notex AI"}
+                    {displayAuthor(msg)}
                   </div>
                   <div className="chat-message-text">
                     {msg.role === "assistant" ? renderMessageContent(msg.content || "") : msg.content}
@@ -452,6 +458,12 @@ export default function SharedAccess({ token, onNavigate }) {
         <>
           {note && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {note?.last_edited_by?.username && (
+                <div className="shared-meta">
+                  Last edited by {note.last_edited_by.username}
+                  {note.updated_at ? ` • ${new Date(note.updated_at).toLocaleString()}` : ""}
+                </div>
+              )}
               <input
                 value={noteDraft?.title || ""}
                 onChange={(e) => setNoteDraft((prev) => ({ ...prev, title: e.target.value }))}

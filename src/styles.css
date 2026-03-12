@@ -2539,6 +2539,11 @@ textarea {
   margin-bottom: 12px;
 }
 
+.shared-meta {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 /* ===== Notes Share Dialog ===== */
 .notes-share-overlay {
   position: fixed;

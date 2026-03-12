@@ -225,14 +225,20 @@ export default function AIChat({ onNavigate }) {
     setCurrentSessionId(session.id);
     setMode(session.mode || "general");
     fetchShareLinks(session.id, session.input_data?.session_id || session.id);
+    const currentUserId = getAuthUserId();
 
     const reconstructedMessages = [];
     session.items.forEach((item) => {
+      const sharedBy = item?.input_data?.shared_by;
+      const sharedById = item?.input_data?.shared_by_id;
+      const isCurrentUser = currentUserId && sharedById && Number(sharedById) === Number(currentUserId);
+      const senderName = sharedBy ? (isCurrentUser ? "You" : sharedBy) : "You";
       reconstructedMessages.push({
         id: item.local_id + "-user",
         role: "user",
         content: formatInputData(item.input_data),
         timestamp: item.created_at,
+        senderName,
       });
       reconstructedMessages.push({
         id: item.local_id + "-assistant",
@@ -662,6 +668,7 @@ export default function AIChat({ onNavigate }) {
       role: "user",
       content: input,
       timestamp: new Date().toISOString(),
+      senderName: "You",
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -1551,7 +1558,7 @@ export default function AIChat({ onNavigate }) {
               </div>
               <div className="ai-message-body">
                 <div className="ai-message-name">
-                  {message.role === "user" ? "You" : "Notex AI"}
+                  {message.role === "user" ? (message.senderName || "You") : "Notex AI"}
                 </div>
                 <div className="chat-message-text">
                   {message.role === "assistant"

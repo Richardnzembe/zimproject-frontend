@@ -133,13 +133,15 @@ export function useNotificationFeed() {
     pollingRef.current = true;
 
     try {
-      const [invitesRes, tasksRes] = await Promise.all([
+      const [invitesRes, tasksRes, serverRes] = await Promise.all([
         authFetch(`${getApiBaseUrl()}/api/share/invites/`, { method: "GET" }),
         authFetch(`${getApiBaseUrl()}/api/tasks/`, { method: "GET" }),
+        authFetch(`${getApiBaseUrl()}/api/notifications/`, { method: "GET" }),
       ]);
 
       const invites = invitesRes.ok ? await safeJson(invitesRes) : [];
       const tasks = tasksRes.ok ? await safeJson(tasksRes) : [];
+      const serverNotifications = serverRes.ok ? await safeJson(serverRes) : null;
 
       if (Array.isArray(invites)) {
         invites.forEach((invite) => {
@@ -217,6 +219,33 @@ export function useNotificationFeed() {
           rememberEvent(eventId);
         }
         localStorage.setItem(keyFor(userScope, "last-study-reminder"), String(nowMs));
+      }
+
+      const serverItems = serverNotifications?.items || [];
+      if (Array.isArray(serverItems)) {
+        serverItems.forEach((item) => {
+          if (item?.kind !== "share_activity") return;
+          const eventId = `share-activity-${item.id}`;
+          if (hasSeenEvent(eventId)) return;
+          const resourceType = item?.data?.resource_type;
+          const targetView =
+            resourceType === "note"
+              ? "notes"
+              : resourceType === "task"
+                ? "tasks"
+                : resourceType === "chat"
+                  ? "ai"
+                  : "shares";
+          addNotification({
+            id: eventId,
+            type: "share",
+            title: item.title || "Shared activity",
+            message: item.message || "",
+            targetView,
+            createdAt: item.created_at || new Date().toISOString(),
+          });
+          rememberEvent(eventId);
+        });
       }
     } catch {
       // Silent failure to avoid breaking the UI.

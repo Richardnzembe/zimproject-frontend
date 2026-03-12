@@ -130,7 +130,8 @@ const Notes = ({ onOpenAI }) => {
     tags: normalizeTags(item.tags),
     content: item.content,
     created_at: item.created_at,
-    updated_at: item.created_at,
+    updated_at: item.updated_at || item.created_at,
+    last_edited_by: item.last_edited_by || null,
     sync_status: "synced",
     pending_action: null,
   });
@@ -428,7 +429,8 @@ const Notes = ({ onOpenAI }) => {
                 server_id: data.id,
                 client_id: data.client_id || note.client_id,
                 created_at: data.created_at || note.created_at,
-                updated_at: new Date().toISOString(),
+                updated_at: data.updated_at || new Date().toISOString(),
+                last_edited_by: data.last_edited_by || note.last_edited_by || null,
                 sync_status: "synced",
                 pending_action: null,
               },
@@ -450,7 +452,8 @@ const Notes = ({ onOpenAI }) => {
               server_id: data.id,
               client_id: data.client_id || note.client_id,
               created_at: data.created_at || note.created_at,
-              updated_at: new Date().toISOString(),
+              updated_at: data.updated_at || new Date().toISOString(),
+              last_edited_by: data.last_edited_by || note.last_edited_by || null,
               sync_status: "synced",
               pending_action: null,
             },
@@ -1141,8 +1144,17 @@ const Notes = ({ onOpenAI }) => {
                 <div className="notes-reading-meta">
                   {activeNote.subject && <span className="tag">{activeNote.subject}</span>}
                   <span className="tag">{activeNote.category}</span>
+                  {activeNote.last_edited_by?.username && (
+                    <span className="tag">
+                      Edited by {activeNote.last_edited_by.username}
+                    </span>
+                  )}
                   <span>
-                    {activeNote.created_at ? new Date(activeNote.created_at).toLocaleString() : ""}
+                    {activeNote.updated_at
+                      ? new Date(activeNote.updated_at).toLocaleString()
+                      : activeNote.created_at
+                        ? new Date(activeNote.created_at).toLocaleString()
+                        : ""}
                   </span>
                 </div>
               </div>
