@@ -957,6 +957,7 @@ const Notes = ({ onOpenAI }) => {
           role="textbox"
           aria-multiline="true"
           dir="ltr"
+          style={{ direction: "ltr", unicodeBidi: "isolate", textAlign: "left" }}
           data-placeholder="Write your note content here..."
           onInput={handleEditorInput}
           suppressContentEditableWarning

@@ -966,11 +966,17 @@ textarea {
   font-size: 0.95rem;
   line-height: 1.6;
   font-family: var(--font-sans);
-  direction: ltr;
-  unicode-bidi: plaintext;
-  text-align: left;
+  direction: ltr !important;
+  unicode-bidi: isolate;
+  text-align: left !important;
   text-transform: none;
   letter-spacing: normal;
+}
+
+.notes-editor * {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
 }
 
 .notes-editor:focus {
