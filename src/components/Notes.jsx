@@ -334,6 +334,23 @@ const Notes = ({ onOpenAI }) => {
     }
   };
 
+  const handleInviteUser = async () => {
+    if (!activeNote?.server_id) {
+      setShareStatus("Please sync the note before sharing.");
+      return;
+    }
+    let shareToken = currentShare?.permission === "collab" ? currentShare?.token : null;
+    if (!shareToken) {
+      const result = await generateShareLink("collab", activeNote.server_id);
+      if (!result?.data?.token) {
+        setShareStatus(result?.error || "Unable to create collaboration link.");
+        return;
+      }
+      shareToken = result.data.token;
+    }
+    await inviteUserToShare(shareToken);
+  };
+
   const removeMemberFromShare = async (token, userId) => {
     if (!token || !userId) return;
     try {
@@ -564,21 +581,39 @@ const Notes = ({ onOpenAI }) => {
     }));
   };
 
+  const BIDIRECTIONAL_CONTROL_REGEX = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
+  const normalizeEditorDirection = () => {
+    if (!editorRef.current) return;
+    editorRef.current.setAttribute("dir", "ltr");
+    editorRef.current.style.direction = "ltr";
+    editorRef.current.style.unicodeBidi = "isolate";
+    editorRef.current.style.textAlign = "left";
+    editorRef.current.style.writingMode = "horizontal-tb";
+    editorRef.current.querySelectorAll("[dir]").forEach((node) => node.removeAttribute("dir"));
+  };
+
   const handleEditorInput = (event) => {
+    normalizeEditorDirection();
     const html = event.currentTarget.innerHTML;
-    const cleaned = html.replace(/\u00a0/g, " ").trim();
+    const sanitized = html.replace(BIDIRECTIONAL_CONTROL_REGEX, "");
+    const cleaned = sanitized.replace(/\u00a0/g, " ").trim();
     const normalized =
       cleaned === "<br>" ||
       cleaned === "<div><br></div>" ||
       cleaned === "<p><br></p>" ||
       cleaned === ""
         ? ""
-        : html;
+        : sanitized;
     setForm((prev) => ({
       ...prev,
       content: normalized,
     }));
   };
+
+  useEffect(() => {
+    normalizeEditorDirection();
+  }, [editorNonce, editingId, activeNote?.local_id]);
 
   const saveNote = async () => {
     const contentText = stripHtml(form.content).replace(/\u00a0/g, " ").trim();
@@ -1178,8 +1213,8 @@ const Notes = ({ onOpenAI }) => {
                 </button>
                 <button
                   className="notes-reading-btn"
-                  onClick={() => inviteUserToShare(currentShare?.token)}
-                  disabled={!currentShare?.token}
+                  onClick={handleInviteUser}
+                  disabled={!activeNote?.server_id}
                 >
                   Add user
                 </button>

@@ -971,6 +971,7 @@ textarea {
   text-align: left !important;
   text-transform: none;
   letter-spacing: normal;
+  writing-mode: horizontal-tb;
 }
 
 .notes-editor * {
