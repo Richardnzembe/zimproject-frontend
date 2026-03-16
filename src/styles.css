@@ -957,6 +957,11 @@ textarea {
   font-size: 0.95rem;
   line-height: 1.6;
   font-family: var(--font-sans);
+  direction: ltr;
+  unicode-bidi: plaintext;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .notes-editor:focus {
@@ -1999,62 +2004,6 @@ textarea {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-}
-
-.ai-emoji-wrap {
-  position: relative;
-}
-
-.ai-emoji-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
-  color: var(--text-secondary);
-  font-size: 1rem;
-  box-shadow: none;
-  padding: 0;
-}
-
-.ai-emoji-button:hover {
-  background: var(--background-color);
-  color: var(--text-primary);
-}
-
-.ai-emoji-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  display: flex;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--surface-color);
-  box-shadow: var(--shadow-lg);
-  z-index: 120;
-}
-
-.ai-emoji-item {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  font-size: 1rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.ai-emoji-item:hover {
-  background: var(--background-color);
-  border-color: var(--border-color);
 }
 
 .ai-mode-button {

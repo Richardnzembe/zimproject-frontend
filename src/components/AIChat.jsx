@@ -129,14 +129,6 @@ const ChatIcon = () => (
 
 const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
 const AI_HEADER_VISIBILITY_STORAGE = "notex_ai_header_visible";
-const COMMON_EMOJIS = [
-  "\u{1F642}", // 🙂
-  "\u2705",    // ✅
-  "\u2728",    // ✨
-  "\u{1F4CC}", // 📌
-  "\u{1F9E0}", // 🧠
-  "\u{1F525}", // 🔥
-];
 const FREE_OPENROUTER_MODELS = [
   { value: "auto", label: "Auto (OpenRouter default)" },
   { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
@@ -164,7 +156,6 @@ export default function AIChat({ onNavigate }) {
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [projectOptionsOpen, setProjectOptionsOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const [emojiMenuOpen, setEmojiMenuOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(() => {
     const stored = localStorage.getItem(AI_HEADER_VISIBILITY_STORAGE);
     if (stored === null) return true;
@@ -181,7 +172,6 @@ export default function AIChat({ onNavigate }) {
   const inputRef = useRef(null);
   const headerMenuRef = useRef(null);
   const modeMenuRef = useRef(null);
-  const emojiMenuRef = useRef(null);
 
   function getSessionTitle(item) {
     const modeType = item.mode || "general";
@@ -350,12 +340,9 @@ export default function AIChat({ onNavigate }) {
     const closeModeMenuOnOutsideClick = (event) => {
       const clickedInsideMode =
         modeMenuRef.current && modeMenuRef.current.contains(event.target);
-      const clickedInsideEmoji =
-        emojiMenuRef.current && emojiMenuRef.current.contains(event.target);
-      if (!clickedInsideMode && !clickedInsideEmoji) {
+      if (!clickedInsideMode) {
         setModeMenuOpen(false);
         setProjectOptionsOpen(false);
-        setEmojiMenuOpen(false);
       }
     };
 
@@ -363,7 +350,6 @@ export default function AIChat({ onNavigate }) {
       if (event.key === "Escape") {
         setModeMenuOpen(false);
         setProjectOptionsOpen(false);
-        setEmojiMenuOpen(false);
       }
     };
 
@@ -825,13 +811,6 @@ export default function AIChat({ onNavigate }) {
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  const insertEmoji = (emoji) => {
-    if (!emoji) return;
-    setInput((prev) => (prev ? `${prev}${emoji}` : emoji));
-    setEmojiMenuOpen(false);
-    inputRef.current?.focus();
   };
 
   const insertExtractedText = (text) => {
@@ -1643,31 +1622,6 @@ export default function AIChat({ onNavigate }) {
             />
             <div className="ai-composer-actions" ref={modeMenuRef}>
               <ImageToText onExtract={insertExtractedText} variant="icon" showStatus={false} className="ai-image-import" />
-              <div className="ai-emoji-wrap" ref={emojiMenuRef}>
-                <button
-                  className="ai-emoji-button"
-                  type="button"
-                  onClick={() => setEmojiMenuOpen((prev) => !prev)}
-                  aria-expanded={emojiMenuOpen}
-                  aria-label="Insert emoji"
-                >
-                  {"\u{1F642}"}
-                </button>
-                {emojiMenuOpen && (
-                  <div className="ai-emoji-menu">
-                    {COMMON_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className="ai-emoji-item"
-                        onClick={() => insertEmoji(emoji)}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
               <div className="ai-mode-wrap">
                 <button
                   className="ai-mode-button"
@@ -1756,6 +1710,7 @@ export default function AIChat({ onNavigate }) {
     </div>
   );
 }
+
 
 
 
