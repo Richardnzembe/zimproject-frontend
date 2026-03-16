@@ -829,11 +829,13 @@ const Notes = ({ onOpenAI }) => {
             placeholder="Title"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
+            dir="ltr"
           />
           <input
             placeholder="Subject"
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            dir="ltr"
           />
         </div>
 
@@ -852,6 +854,7 @@ const Notes = ({ onOpenAI }) => {
             placeholder="Tags (comma separated)"
             value={form.tags}
             onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            dir="ltr"
           />
         </div>
 
@@ -953,6 +956,7 @@ const Notes = ({ onOpenAI }) => {
           contentEditable
           role="textbox"
           aria-multiline="true"
+          dir="ltr"
           data-placeholder="Write your note content here..."
           onInput={handleEditorInput}
           suppressContentEditableWarning

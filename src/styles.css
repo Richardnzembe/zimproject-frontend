@@ -899,6 +899,15 @@ textarea {
   pointer-events: none;
 }
 
+.notes-form input,
+.notes-form textarea,
+.notes-form select,
+.notes-editor {
+  direction: ltr;
+  unicode-bidi: plaintext;
+  text-align: left;
+}
+
 /* ===== Notes Editor ===== */
 .notes-editor-toolbar {
   display: flex;
