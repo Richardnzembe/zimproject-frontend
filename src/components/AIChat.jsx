@@ -1632,7 +1632,16 @@ export default function AIChat({ onNavigate }) {
           }}
         >
           <div className="ai-composer-inner">
-            <div className="ai-inline-controls" ref={modeMenuRef}>
+            <textarea
+              ref={inputRef}
+              className="ai-composer-textarea"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask Notex AI..."
+              rows={1}
+            />
+            <div className="ai-composer-actions" ref={modeMenuRef}>
               <ImageToText onExtract={insertExtractedText} variant="icon" showStatus={false} className="ai-image-import" />
               <div className="ai-emoji-wrap" ref={emojiMenuRef}>
                 <button
@@ -1659,87 +1668,80 @@ export default function AIChat({ onNavigate }) {
                   </div>
                 )}
               </div>
+              <div className="ai-mode-wrap">
+                <button
+                  className="ai-mode-button"
+                  onClick={() => setModeMenuOpen((prev) => !prev)}
+                  title="Choose mode"
+                  type="button"
+                >
+                  {mode === "general" ? "General" : mode === "study" ? "Study" : `Project (${projectMode === "guided" ? "Guided" : "Fast"})`}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                {modeMenuOpen && (
+                  <div className="mode-dropdown-menu mode-main-menu ai-mode-menu">
+                    <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
+                      General
+                    </button>
+                    <button onClick={() => { setMode("study"); setModeMenuOpen(false); }}>
+                      Study
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMode("project");
+                        setProjectOptionsOpen((prev) => !prev);
+                      }}
+                    >
+                      Project
+                    </button>
+                    {projectOptionsOpen && (
+                      <div className="mode-dropdown-sub">
+                        <button
+                          className={projectMode === "guided" ? "active" : ""}
+                          onClick={() => {
+                            setMode("project");
+                            setProjectMode("guided");
+                            setModeMenuOpen(false);
+                            setProjectOptionsOpen(false);
+                          }}
+                        >
+                          Guided
+                        </button>
+                        <button
+                          className={projectMode === "fast" ? "active" : ""}
+                          onClick={() => {
+                            setMode("project");
+                            setProjectMode("fast");
+                            setModeMenuOpen(false);
+                            setProjectOptionsOpen(false);
+                          }}
+                        >
+                          Fast
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMode("general");
+                            setModeMenuOpen(false);
+                            setProjectOptionsOpen(false);
+                          }}
+                        >
+                          General
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <button
-                className="ai-mode-button"
-                onClick={() => setModeMenuOpen((prev) => !prev)}
-                title="Choose mode"
-                type="button"
+                onClick={sendMessage}
+                disabled={loading || !input.trim()}
+                className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
               >
-                {mode === "general" ? "General" : mode === "study" ? "Study" : `Project (${projectMode === "guided" ? "Guided" : "Fast"})`}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+                <SendIcon />
               </button>
-              {modeMenuOpen && (
-                <div className="mode-dropdown-menu mode-main-menu ai-mode-menu">
-                  <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
-                    General
-                  </button>
-                  <button onClick={() => { setMode("study"); setModeMenuOpen(false); }}>
-                    Study
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMode("project");
-                      setProjectOptionsOpen((prev) => !prev);
-                    }}
-                  >
-                    Project
-                  </button>
-                  {projectOptionsOpen && (
-                    <div className="mode-dropdown-sub">
-                      <button
-                        className={projectMode === "guided" ? "active" : ""}
-                        onClick={() => {
-                          setMode("project");
-                          setProjectMode("guided");
-                          setModeMenuOpen(false);
-                          setProjectOptionsOpen(false);
-                        }}
-                      >
-                        Guided
-                      </button>
-                      <button
-                        className={projectMode === "fast" ? "active" : ""}
-                        onClick={() => {
-                          setMode("project");
-                          setProjectMode("fast");
-                          setModeMenuOpen(false);
-                          setProjectOptionsOpen(false);
-                        }}
-                      >
-                        Fast
-                      </button>
-                      <button
-                        onClick={() => {
-                          setMode("general");
-                          setModeMenuOpen(false);
-                          setProjectOptionsOpen(false);
-                        }}
-                      >
-                        General
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-            <textarea
-              ref={inputRef}
-              className="ai-composer-textarea"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask Notex AI..."
-              rows={1}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={loading || !input.trim()}
-              className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
-            >
-              <SendIcon />
-            </button>
           </div>
         </div>
       </main>

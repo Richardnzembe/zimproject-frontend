@@ -1964,6 +1964,9 @@ textarea {
   padding: 10px;
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(10px);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .ai-image-import {
@@ -1972,8 +1975,8 @@ textarea {
 }
 
 .ai-composer-textarea {
-  width: 100%;
-  padding: 12px 60px 12px 170px;
+  flex: 1;
+  padding: 12px;
   font-size: 1rem;
   border: 0;
   border-radius: 12px;
@@ -1984,17 +1987,18 @@ textarea {
   max-height: 200px;
   line-height: 1.5;
   outline: none;
+  text-transform: none;
+  direction: ltr;
+  unicode-bidi: plaintext;
+  text-align: left;
+  letter-spacing: normal;
 }
 
-.ai-inline-controls {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+.ai-composer-actions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  z-index: 2;
+  flex-shrink: 0;
 }
 
 .ai-emoji-wrap {
@@ -2068,6 +2072,10 @@ textarea {
   cursor: pointer;
 }
 
+.ai-mode-wrap {
+  position: relative;
+}
+
 .ai-mode-button:hover {
   background: var(--background-color);
   color: var(--text-primary);
@@ -2102,17 +2110,14 @@ textarea {
 }
 
 .ai-mode-menu {
-  left: 0;
-  right: auto;
-  top: calc(100% + 8px);
+  left: auto;
+  right: 0;
 }
 
 .ai-send-button {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 8px;
+  padding: 0;
+  width: 36px;
+  height: 36px;
   border: none;
   border-radius: 8px;
   color: #fff;
@@ -2120,6 +2125,7 @@ textarea {
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .ai-send-button.active {
@@ -2166,7 +2172,7 @@ textarea {
   }
 
   .ai-composer-textarea {
-    padding-left: 160px;
+    padding: 12px;
   }
 
   .ai-header-model-label {
@@ -2203,27 +2209,23 @@ textarea {
     padding: 8px;
   }
 
-  .ai-inline-controls {
-    position: static;
-    transform: none;
+  .ai-composer-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .ai-mode-button {
-    flex: 1;
     justify-content: space-between;
   }
 
   .ai-composer-textarea {
-    padding: 10px 52px 10px 12px;
+    padding: 10px 12px;
     min-height: 44px;
   }
 
   .ai-send-button {
-    top: auto;
-    bottom: 12px;
-    transform: none;
+    align-self: center;
   }
 }
 
