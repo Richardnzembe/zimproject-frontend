@@ -87,6 +87,7 @@ const Notes = ({ onOpenAI }) => {
     return stored || "auto";
   });
   const editorRef = useRef(null);
+  const editorContentRef = useRef("");
 
   const [form, setForm] = useState({
     title: "",
@@ -605,6 +606,7 @@ const Notes = ({ onOpenAI }) => {
       cleaned === ""
         ? ""
         : sanitized;
+    editorContentRef.current = normalized;
     setForm((prev) => ({
       ...prev,
       content: normalized,
@@ -612,6 +614,12 @@ const Notes = ({ onOpenAI }) => {
   };
 
   useEffect(() => {
+    if (!editorRef.current) return;
+    const nextHtml = form.content || "";
+    if (editorRef.current.innerHTML !== nextHtml) {
+      editorRef.current.innerHTML = nextHtml;
+    }
+    editorContentRef.current = nextHtml;
     normalizeEditorDirection();
   }, [editorNonce, editingId, activeNote?.local_id]);
 
@@ -996,7 +1004,6 @@ const Notes = ({ onOpenAI }) => {
           data-placeholder="Write your note content here..."
           onInput={handleEditorInput}
           suppressContentEditableWarning
-          dangerouslySetInnerHTML={{ __html: form.content || "" }}
         />
 
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", marginTop: "16px" }}>
