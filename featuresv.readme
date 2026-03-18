@@ -1,28 +1,28 @@
 NotesAI-RNA Application - Feature Guide
-===============================
+======================================
 
-This file lists the major features in the NotesAI-RNA application and explains what each one does.
+This document lists the major features in NotesAI-RNA and describes what they do.
 
 1) Authentication and Account
-- Register/login/logout with username, email, and password.
-- Access and refresh tokens are stored in localStorage and cookies for session continuity.
-- Auto-refresh on 401 via the auth helper (retry once with refresh token).
+- Register, login, and logout with username, email, and password.
+- JWT access + refresh flow with automatic refresh on 401 (retry once).
+- Tokens stored in localStorage and cookies for session continuity.
 - Password reset flow (request + confirm with uid/token).
 - In-account password change.
 - Account deletion with confirmation.
 - Profile endpoint used to show current user info.
 
 2) AI API Key and Model Selection
-- Optional OpenRouter API key storage on the server (encrypted).
+- Optional OpenRouter API key stored on the server (encrypted).
 - Device PIN required to unlock the API key form; PIN can be set and changed.
 - Toggle between using the server key or your own key.
 - Model selection dropdown in AI Chat and Notes AI actions.
 
 3) Notes Management (Rich Editor)
 - Create, edit, and delete notes with title, subject, category, tags, and content.
-- Rich text toolbar: bold, italic, underline, bulleted list, numbered list, headings, font selection, and clear formatting.
+- Rich editor toolbar: bold, italic, underline, bulleted list, numbered list, headings, font selection, and clear formatting.
 - Search and filter notes by text and subject.
-- Reader view shows metadata (tags, updated time, editor) and full note content.
+- Reader view shows tags, metadata (updated time, editor), and full note content.
 
 4) Notes AI Actions
 - AI actions on a note: summarize, explain, and generate questions.
@@ -47,7 +47,9 @@ This file lists the major features in the NotesAI-RNA application and explains w
 - Share links for notes, tasks, and chat sessions.
 - Permissions: read (view only) or collab (collaborate with other users).
 - Invite users to a share, list members, remove members, and revoke links.
+- Share management panel to copy links and manage members.
 - Shared access screen supports token-based viewing and collaboration.
+- Invited users can accept or decline from the shared access screen.
 
 8) Notifications
 - Notification center and notifications page with unread count.
@@ -73,6 +75,7 @@ This file lists the major features in the NotesAI-RNA application and explains w
 11) Platform and API Modules
 - Frontend: React + Vite (PWA assets included).
 - Backend: Django + Django REST Framework + SimpleJWT.
+- OCR: Tesseract.js for image-to-text in AI chat.
 - Primary API namespaces:
   - /api/auth/
   - /api/notes/
@@ -83,4 +86,3 @@ This file lists the major features in the NotesAI-RNA application and explains w
 
 Notes
 - OpenRouter is the AI provider. You can use the server key or your own key in Account Settings.
-
