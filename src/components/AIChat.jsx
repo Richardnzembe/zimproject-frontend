@@ -137,6 +137,24 @@ const FREE_OPENROUTER_MODELS = [
   { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
   { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
 ];
+const CHAT_MODES = [
+  { value: "general", label: "General", description: "Quick answers and everyday help." },
+  { value: "research", label: "Deep Research", description: "Structured analysis, tradeoffs, and deeper reasoning." },
+  { value: "writing", label: "Writing", description: "Draft, rewrite, and polish text clearly." },
+];
+
+const normalizeChatMode = (value) => {
+  if (value === "study" || value === "project") {
+    return "research";
+  }
+  if (value === "writing" || value === "research" || value === "general") {
+    return value;
+  }
+  return "general";
+};
+
+const getChatModeLabel = (value) =>
+  CHAT_MODES.find((item) => item.value === normalizeChatMode(value))?.label || "General";
 
 export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
@@ -145,7 +163,6 @@ export default function AIChat({ onNavigate }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState("general");
-  const [projectMode, setProjectMode] = useState("guided");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -154,7 +171,6 @@ export default function AIChat({ onNavigate }) {
   const [renameSessionId, setRenameSessionId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
-  const [projectOptionsOpen, setProjectOptionsOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(() => {
     const stored = localStorage.getItem(AI_HEADER_VISIBILITY_STORAGE);
@@ -174,13 +190,11 @@ export default function AIChat({ onNavigate }) {
   const modeMenuRef = useRef(null);
 
   function getSessionTitle(item) {
-    const modeType = item.mode || "general";
+    const modeType = normalizeChatMode(item.mode || "general");
     const input = item.input_data || {};
 
-    if (modeType === "project") {
-      return input.project_name || "Project Help";
-    } else if (modeType === "study") {
-      return input.notes ? input.notes.slice(0, 40) : "Study Help";
+    if (modeType === "research") {
+      return input.question || input.notes || input.project_name || "Deep Research";
     } else if (modeType === "notes") {
       return input.note_content ? input.note_content.slice(0, 40) : "Notes Help";
     }
@@ -198,12 +212,11 @@ export default function AIChat({ onNavigate }) {
     };
 
     setMode("general");
-    setProjectMode("guided");
     setMessages([
       {
         id: "welcome",
         role: "assistant",
-        content: "Hi! 👋 I'm NotesAI-RNA AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
+        content: "Hi! I'm NotesAI-RNA AI, your research and writing assistant. What would you like to work on today?",
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -213,7 +226,7 @@ export default function AIChat({ onNavigate }) {
 
   function openSession(session) {
     setCurrentSessionId(session.id);
-    setMode(session.mode || "general");
+    setMode(normalizeChatMode(session.mode || "general"));
     fetchShareLinks(session.id, session.input_data?.session_id || session.id);
     const currentUserId = getAuthUserId();
 
@@ -242,7 +255,7 @@ export default function AIChat({ onNavigate }) {
       reconstructedMessages.push({
         id: "welcome",
         role: "assistant",
-        content: "Hi! 👋 I'm NotesAI-RNA AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
+        content: "Hi! I'm NotesAI-RNA AI, your research and writing assistant. What would you like to work on today?",
         timestamp: new Date().toISOString(),
       });
     }
@@ -294,7 +307,7 @@ export default function AIChat({ onNavigate }) {
         sessions[key] = {
           id: item?.input_data?.session_id || item.local_id || crypto.randomUUID(),
           title: getSessionTitle(item),
-          mode: item.mode,
+          mode: normalizeChatMode(item.mode),
           input_data: item.input_data,
           created_at: item.created_at,
           items: [],
@@ -342,14 +355,12 @@ export default function AIChat({ onNavigate }) {
         modeMenuRef.current && modeMenuRef.current.contains(event.target);
       if (!clickedInsideMode) {
         setModeMenuOpen(false);
-        setProjectOptionsOpen(false);
       }
     };
 
     const closeModeMenuOnEscape = (event) => {
       if (event.key === "Escape") {
         setModeMenuOpen(false);
-        setProjectOptionsOpen(false);
       }
     };
 
@@ -360,16 +371,6 @@ export default function AIChat({ onNavigate }) {
       document.removeEventListener("keydown", closeModeMenuOnEscape);
     };
   }, []);
-
-  useEffect(() => {
-    if (!modeMenuOpen) {
-      setProjectOptionsOpen(false);
-      return;
-    }
-    if (mode === "project") {
-      setProjectOptionsOpen(true);
-    }
-  }, [modeMenuOpen, mode]);
 
   useEffect(() => {
     const closeOnOutsideClick = (event) => {
@@ -615,15 +616,15 @@ export default function AIChat({ onNavigate }) {
         url: `${getApiBaseUrl()}/api/ai/general/`,
         body: { question: input, history, session_id: currentSessionId },
       };
-    } else if (mode === "study") {
+    } else if (mode === "research") {
       return {
-        url: `${getApiBaseUrl()}/api/ai/study/`,
-        body: { notes: input, task: "explain", history, session_id: currentSessionId },
+        url: `${getApiBaseUrl()}/api/ai/research/`,
+        body: { question: input, history, session_id: currentSessionId },
       };
-    } else if (mode === "project") {
+    } else if (mode === "writing") {
       return {
-        url: `${getApiBaseUrl()}/api/ai/project/`,
-        body: { mode: projectMode, project_name: input, history, session_id: currentSessionId },
+        url: `${getApiBaseUrl()}/api/ai/writing/`,
+        body: { question: input, history, session_id: currentSessionId },
       };
     }
     return {
@@ -902,10 +903,10 @@ export default function AIChat({ onNavigate }) {
     switch (mode) {
       case "general":
         return "Ask any question";
-      case "study":
-        return "Get help with study materials";
-      case "project":
-        return `Work on a project (${projectMode === "guided" ? "Guided" : "Fast"})`;
+      case "research":
+        return "Get a deeper, more structured analysis";
+      case "writing":
+        return "Draft, rewrite, or polish text";
       default:
         return "";
     }
@@ -1476,41 +1477,16 @@ export default function AIChat({ onNavigate }) {
                 <h3>Choose a mode to begin</h3>
                 <p>{getModeDescription()}</p>
                 <div className="mode-picker-actions">
-                  <button
-                    className={`mode-picker-btn ${mode === "general" ? "active" : ""}`}
-                    onClick={() => setMode("general")}
-                  >
-                    General
-                  </button>
-                  <button
-                    className={`mode-picker-btn ${mode === "study" ? "active" : ""}`}
-                    onClick={() => setMode("study")}
-                  >
-                    Study
-                  </button>
-                  <button
-                    className={`mode-picker-btn ${mode === "project" ? "active" : ""}`}
-                    onClick={() => setMode("project")}
-                  >
-                    Project
-                  </button>
+                  {CHAT_MODES.map((item) => (
+                    <button
+                      key={item.value}
+                      className={`mode-picker-btn ${mode === item.value ? "active" : ""}`}
+                      onClick={() => setMode(item.value)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
-                {mode === "project" && (
-                  <div className="mode-picker-sub">
-                    <button
-                      className={`mode-picker-sub-btn ${projectMode === "guided" ? "active" : ""}`}
-                      onClick={() => setProjectMode("guided")}
-                    >
-                      Guided
-                    </button>
-                    <button
-                      className={`mode-picker-sub-btn ${projectMode === "fast" ? "active" : ""}`}
-                      onClick={() => setProjectMode("fast")}
-                    >
-                      Fast
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1629,62 +1605,24 @@ export default function AIChat({ onNavigate }) {
                   title="Choose mode"
                   type="button"
                 >
-                  {mode === "general" ? "General" : mode === "study" ? "Study" : `Project (${projectMode === "guided" ? "Guided" : "Fast"})`}
+                  {getChatModeLabel(mode)}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </button>
                 {modeMenuOpen && (
                   <div className="mode-dropdown-menu mode-main-menu ai-mode-menu">
-                    <button onClick={() => { setMode("general"); setModeMenuOpen(false); }}>
-                      General
-                    </button>
-                    <button onClick={() => { setMode("study"); setModeMenuOpen(false); }}>
-                      Study
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMode("project");
-                        setProjectOptionsOpen((prev) => !prev);
-                      }}
-                    >
-                      Project
-                    </button>
-                    {projectOptionsOpen && (
-                      <div className="mode-dropdown-sub">
-                        <button
-                          className={projectMode === "guided" ? "active" : ""}
-                          onClick={() => {
-                            setMode("project");
-                            setProjectMode("guided");
-                            setModeMenuOpen(false);
-                            setProjectOptionsOpen(false);
-                          }}
-                        >
-                          Guided
-                        </button>
-                        <button
-                          className={projectMode === "fast" ? "active" : ""}
-                          onClick={() => {
-                            setMode("project");
-                            setProjectMode("fast");
-                            setModeMenuOpen(false);
-                            setProjectOptionsOpen(false);
-                          }}
-                        >
-                          Fast
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMode("general");
-                            setModeMenuOpen(false);
-                            setProjectOptionsOpen(false);
-                          }}
-                        >
-                          General
-                        </button>
-                      </div>
-                    )}
+                    {CHAT_MODES.map((item) => (
+                      <button
+                        key={item.value}
+                        onClick={() => {
+                          setMode(item.value);
+                          setModeMenuOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

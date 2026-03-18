@@ -51,11 +51,11 @@ export default function NotesPage() {
     setAIResult("");
 
     try {
-      const body = { notes: "Example note content" }; // For Study/Project/General mode you can customize
+      const body = { question: "Example note content" };
       let url = "";
 
-      if (mode === "study") url = `${getApiBaseUrl()}/api/ai/study/`;
-      else if (mode === "project") url = `${getApiBaseUrl()}/api/ai/project/`;
+      if (mode === "research") url = `${getApiBaseUrl()}/api/ai/research/`;
+      else if (mode === "writing") url = `${getApiBaseUrl()}/api/ai/writing/`;
       else if (mode === "general") url = `${getApiBaseUrl()}/api/ai/general/`;
       else return;
 

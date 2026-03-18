@@ -147,13 +147,13 @@ AIChat.jsx is a multi-session workspace with history reconstruction.
 
 Modes:
 - general
-- study
-- project (sub-mode guided/fast)
+- research
+- writing
 
 Endpoint mapping:
 - General: /api/ai/general/
-- Study: /api/ai/study/
-- Project: /api/ai/project/ with project mode in payload
+- Deep Research: /api/ai/research/
+- Writing: /api/ai/writing/
 
 Session/history model:
 - Local history stored in ai_history (IndexedDB)
@@ -243,4 +243,5 @@ The application was designed around:
 - Practical collaboration workflows through share links and role-based actions
 
 This architecture prioritizes practical usability for students while keeping the frontend extensible for future backend/security upgrades.
+
 

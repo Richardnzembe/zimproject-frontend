@@ -199,15 +199,16 @@ const AIHistory = () => {
   }, [authToken]);
 
   const visibleHistory = history.slice(0, visibleCount);
+  const normalizeMode = (mode) => {
+    if (mode === "study" || mode === "project") return "research";
+    return mode || "general";
+  };
 
   const getTitle = (item) => {
-    const mode = item.mode || "general";
+    const mode = normalizeMode(item.mode);
     const input = item.input_data || {};
-    if (mode === "project") {
-      return input.project_name || input.details || "Project help";
-    }
-    if (mode === "study") {
-      return input.notes ? input.notes.slice(0, 80) : "Study help";
+    if (mode === "research") {
+      return input.question || input.notes || input.project_name || input.details || "Deep research";
     }
     if (mode === "notes") {
       return input.note_content ? input.note_content.slice(0, 80) : "Notes help";
@@ -216,7 +217,7 @@ const AIHistory = () => {
   };
 
   const getSubtitle = (item) => {
-    const mode = item.mode || "general";
+    const mode = normalizeMode(item.mode);
     const when = item.created_at ? new Date(item.created_at).toLocaleString() : "Unknown date";
     return `${mode.toUpperCase()} • ${when}`;
   };

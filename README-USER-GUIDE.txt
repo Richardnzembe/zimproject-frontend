@@ -45,8 +45,8 @@ NotesAI-RNA AI (AI Assistant)
 - Ask questions, summarize, or get explanations.
 - Modes:
   - General: open Q&A.
-  - Study: learning help and explanations.
-  - Project: guided or fast help on projects.
+  - Deep Research: more structured analysis and detailed reasoning.
+  - Writing: drafting, rewriting, and polishing help.
 - Chat history is saved per session.
 - You can share chat sessions using share links.
 
@@ -83,6 +83,7 @@ Troubleshooting
 Support
 -------
 If you need help, contact your administrator or deployment owner.
+
 
 
 

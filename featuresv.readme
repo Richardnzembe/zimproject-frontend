@@ -38,8 +38,9 @@ This document lists the major features in NotesAI-RNA and describes what they do
 
 6) AI Chat (NotesAI-RNA AI)
 - Multi-session chat workspace with saved history per user.
-- Modes: General, Study, and Project.
-- Project mode includes Guided and Fast flows.
+- Filters: General, Deep Research, and Writing.
+- Deep Research is used for more structured analysis and longer-form reasoning.
+- Writing is used for drafting, rewriting, and polishing content.
 - Session history can be renamed and deleted.
 - Image-to-text import (OCR) inserts extracted text into the chat input.
 
