@@ -1,0 +1,86 @@
+NotesAI-RNA Application - Feature Guide
+===============================
+
+This file lists the major features in the NotesAI-RNA application and explains what each one does.
+
+1) Authentication and Account
+- Register/login/logout with username, email, and password.
+- Access and refresh tokens are stored in localStorage and cookies for session continuity.
+- Auto-refresh on 401 via the auth helper (retry once with refresh token).
+- Password reset flow (request + confirm with uid/token).
+- In-account password change.
+- Account deletion with confirmation.
+- Profile endpoint used to show current user info.
+
+2) AI API Key and Model Selection
+- Optional OpenRouter API key storage on the server (encrypted).
+- Device PIN required to unlock the API key form; PIN can be set and changed.
+- Toggle between using the server key or your own key.
+- Model selection dropdown in AI Chat and Notes AI actions.
+
+3) Notes Management (Rich Editor)
+- Create, edit, and delete notes with title, subject, category, tags, and content.
+- Rich text toolbar: bold, italic, underline, bulleted list, numbered list, headings, font selection, and clear formatting.
+- Search and filter notes by text and subject.
+- Reader view shows metadata (tags, updated time, editor) and full note content.
+
+4) Notes AI Actions
+- AI actions on a note: summarize, explain, and generate questions.
+- Responses display inside the note reader panel.
+- AI interactions are stored in local AI history.
+
+5) Tasks Management
+- Create, edit, and delete tasks.
+- Priority levels and due dates.
+- Mark tasks complete or active.
+- Filter tasks by active/completed.
+- Task lists are ordered with incomplete items first and then by due date.
+
+6) AI Chat (NotesAI-RNA AI)
+- Multi-session chat workspace with saved history per user.
+- Modes: General, Study, and Project.
+- Project mode includes Guided and Fast flows.
+- Session history can be renamed and deleted.
+- Image-to-text import (OCR) inserts extracted text into the chat input.
+
+7) Sharing and Collaboration
+- Share links for notes, tasks, and chat sessions.
+- Permissions: read (view only) or collab (collaborate with other users).
+- Invite users to a share, list members, remove members, and revoke links.
+- Shared access screen supports token-based viewing and collaboration.
+
+8) Notifications
+- Notification center and notifications page with unread count.
+- Mark one or all notifications as read; clear all.
+- Automated notifications:
+  - Share invites and share activity.
+  - Task due and due-soon alerts.
+  - Periodic study reminders.
+- Optional browser notifications when permission is granted.
+
+9) Offline-First Sync
+- Notes, tasks, and AI history are stored in IndexedDB for offline use.
+- Local changes are saved immediately and marked as pending.
+- Sync runs on app start, auth changes, online events, and periodic intervals.
+- Pending actions (create/update/delete) are merged with server data once online.
+
+10) Navigation and UI
+- Single-page app with views: Home, Notes, Tasks, NotesAI-RNA AI, Shares, Notifications, Account.
+- Responsive left sidebar navigation with a mobile overlay.
+- Theme toggle (light/dark) with persisted preference.
+- Cookie consent banner for core app functionality.
+
+11) Platform and API Modules
+- Frontend: React + Vite (PWA assets included).
+- Backend: Django + Django REST Framework + SimpleJWT.
+- Primary API namespaces:
+  - /api/auth/
+  - /api/notes/
+  - /api/tasks/
+  - /api/ai/
+  - /api/share/
+  - /api/notifications/
+
+Notes
+- OpenRouter is the AI provider. You can use the server key or your own key in Account Settings.
+

@@ -1,9 +1,9 @@
-NOTEX SYSTEM ARCHITECTURE AND APPLICATION LOGIC
+NotesAI-RNA SYSTEM ARCHITECTURE AND APPLICATION LOGIC
 =============================================
 
 1) System Overview
 ------------------
-Notex is a React + Vite Progressive Web App (PWA) for study productivity.
+NotesAI-RNA is a React + Vite Progressive Web App (PWA) for study productivity.
 The frontend is responsible for:
 - Authentication UI and token lifecycle
 - Notes and tasks management (with offline-first sync)
@@ -243,3 +243,4 @@ The application was designed around:
 - Practical collaboration workflows through share links and role-based actions
 
 This architecture prioritizes practical usability for students while keeping the frontend extensible for future backend/security upgrades.
+

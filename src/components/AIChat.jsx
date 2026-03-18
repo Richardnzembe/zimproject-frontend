@@ -127,8 +127,8 @@ const ChatIcon = () => (
   </svg>
 );
 
-const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
-const AI_HEADER_VISIBILITY_STORAGE = "notex_ai_header_visible";
+const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
+const AI_HEADER_VISIBILITY_STORAGE = "NotesAI-RNA_ai_header_visible";
 const FREE_OPENROUTER_MODELS = [
   { value: "auto", label: "Auto (OpenRouter default)" },
   { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
@@ -203,7 +203,7 @@ export default function AIChat({ onNavigate }) {
       {
         id: "welcome",
         role: "assistant",
-        content: "Hi! 👋 I'm Notex AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
+        content: "Hi! 👋 I'm NotesAI-RNA AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -242,7 +242,7 @@ export default function AIChat({ onNavigate }) {
       reconstructedMessages.push({
         id: "welcome",
         role: "assistant",
-        content: "Hi! 👋 I'm Notex AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
+        content: "Hi! 👋 I'm NotesAI-RNA AI, your study assistant. How’s your day going? What would you like to work on or talk about today? 😊",
         timestamp: new Date().toISOString(),
       });
     }
@@ -1087,7 +1087,7 @@ export default function AIChat({ onNavigate }) {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
             </svg>
-            <span>Notex AI</span>
+            <span>NotesAI-RNA AI</span>
           </div>
           <button className="sidebar-new-chat" onClick={startNewChat}>
             <PlusIcon />
@@ -1537,7 +1537,7 @@ export default function AIChat({ onNavigate }) {
               </div>
               <div className="ai-message-body">
                 <div className="ai-message-name">
-                  {message.role === "user" ? (message.senderName || "You") : "Notex AI"}
+                  {message.role === "user" ? (message.senderName || "You") : "NotesAI-RNA AI"}
                 </div>
                 <div className="chat-message-text">
                   {message.role === "assistant"
@@ -1617,7 +1617,7 @@ export default function AIChat({ onNavigate }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Notex AI..."
+              placeholder="Ask NotesAI-RNA AI..."
               rows={1}
             />
             <div className="ai-composer-actions" ref={modeMenuRef}>
@@ -1710,6 +1710,7 @@ export default function AIChat({ onNavigate }) {
     </div>
   );
 }
+
 
 
 

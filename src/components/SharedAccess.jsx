@@ -170,7 +170,7 @@ export default function SharedAccess({ token, onNavigate }) {
   const canCollaborate = permission === "collab" && isAuthed;
 
   const displayAuthor = (msg) => {
-    if (msg.role !== "user") return "Notex AI";
+    if (msg.role !== "user") return "NotesAI-RNA AI";
     if (msg.user_id && userId && msg.user_id === userId) return "You";
     return msg.username || "User";
   };
@@ -557,5 +557,6 @@ export default function SharedAccess({ token, onNavigate }) {
     </div>
   );
 }
+
 
 

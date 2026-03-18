@@ -33,7 +33,7 @@ const QuestionIcon = () => (
   </svg>
 );
 
-const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
+const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
 const FREE_OPENROUTER_MODELS = [
   { value: "auto", label: "Auto (OpenRouter default)" },
   { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
@@ -835,7 +835,7 @@ const Notes = ({ onOpenAI }) => {
               <path d="M12 8v8"></path>
               <path d="M8 12h8"></path>
             </svg>
-            Notex AI
+            NotesAI-RNA AI
           </button>
         </div>
       </div>
@@ -1317,7 +1317,7 @@ const Notes = ({ onOpenAI }) => {
 
               <section className="notes-ai-panel">
                 <h4 className="notes-ai-title">
-                  Notex AI Actions
+                  NotesAI-RNA AI Actions
                 </h4>
                 <div className="notes-ai-toolbar">
                   <span className="notes-ai-label">Model</span>
@@ -1445,5 +1445,6 @@ const Notes = ({ onOpenAI }) => {
 };
 
 export default Notes;
+
 
 

@@ -1,9 +1,9 @@
-README USER GUIDE - Notex
+README USER GUIDE - NotesAI-RNA
 =====================================
 
 Overview
 --------
-Notex is a study productivity web app with notes, tasks, sharing, notifications, and an AI assistant (Notex AI). It helps you organize study material, track deadlines, and collaborate.
+NotesAI-RNA is a study productivity web app with notes, tasks, sharing, notifications, and an AI assistant (NotesAI-RNA AI). It helps you organize study material, track deadlines, and collaborate.
 
 Getting Started
 --------------
@@ -17,7 +17,7 @@ Open the sidebar menu to access:
 - Home
 - Notes
 - Tasks
-- Notex AI
+- NotesAI-RNA AI
 - Shares
 - Notifications
 - Account
@@ -40,7 +40,7 @@ Tasks
 - Track progress and mark tasks complete.
 - Share tasks with collaborators using share links.
 
-Notex AI (AI Assistant)
+NotesAI-RNA AI (AI Assistant)
 ---------------------
 - Ask questions, summarize, or get explanations.
 - Modes:
@@ -83,6 +83,7 @@ Troubleshooting
 Support
 -------
 If you need help, contact your administrator or deployment owner.
+
 
 
 

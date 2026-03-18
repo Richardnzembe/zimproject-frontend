@@ -69,7 +69,7 @@ function App() {
           <header className="app-topbar">
             <div className="topbar-main">
               <div className="brand-block brand-compact">
-                <div className="brand-title">Notex</div>
+                <div className="brand-title">NotesAI-RNA</div>
               </div>
               <div className="topbar-actions">
                 <ThemeToggle compact iconOnly />
@@ -125,5 +125,6 @@ function App() {
 }
 
 export default App;
+
 
 

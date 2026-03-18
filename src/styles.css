@@ -1748,7 +1748,7 @@ textarea {
   bottom: calc(100% + 6px);
 }
 
-/* ===== Notex AI Chat (ChatGPT-style) ===== */
+/* ===== NotesAI-RNA AI Chat (ChatGPT-style) ===== */
 .ai-chat {
   display: flex;
   height: 100vh;
@@ -3682,3 +3682,4 @@ textarea {
 .cookie-banner-actions button {
   min-height: 36px;
 }
+

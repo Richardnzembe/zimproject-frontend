@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       devOptions: { enabled: true },
       manifest: {
-        name: 'Notex',
-        short_name: 'Notex',
-        description: 'Notex helps you manage notes, tasks, and AI study workflows.',
+        name: 'NotesAI-RNA',
+        short_name: 'NotesAI-RNA',
+        description: 'NotesAI-RNA helps you manage notes, tasks, and AI study workflows.',
         start_url: '/',
         display: 'standalone',
         background_color: '#f5f3ee',
@@ -24,4 +24,5 @@ export default defineConfig({
     })
   ]
 });
+
 
