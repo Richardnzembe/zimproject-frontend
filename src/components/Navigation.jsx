@@ -69,7 +69,7 @@ export default function Navigation({ activeView, onViewChange }) {
     { id: "home", label: "Home" },
     { id: "notes", label: "Notes" },
     { id: "tasks", label: "Tasks" },
-    { id: "ai", label: "NotesAI-RNA AI", primary: true },
+    { id: "ai", label: "NotesAI", primary: true },
     { id: "shares", label: "Shares" },
     { id: "notifications", label: "Notifications" },
     { id: "account", label: "Account" },
