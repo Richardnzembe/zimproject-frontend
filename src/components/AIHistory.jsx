@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId, authFetch } from "../lib/api";
+import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
 import Charts from "./Charts";
 import { getHistoryByUser, replaceUserHistory } from "../db";
 
@@ -223,7 +224,7 @@ const AIHistory = () => {
   };
 
   const getPreview = (item) => {
-    const text = item.response_text || "";
+    const text = normalizeOrderedListNumbering(item.response_text || "");
     if (!text) return "No response yet.";
     return text.length > 140 ? `${text.slice(0, 140)}...` : text;
   };
@@ -369,8 +370,8 @@ const AIHistory = () => {
                     </div>
                     <div className="history-text">
                       <strong>Response:</strong>
-                      <div style={{ whiteSpace: "pre-wrap", marginTop: "8px", padding: "12px", background: "var(--background-color)", borderRadius: "var(--radius-sm)" }}>
-                        {item.response_text}
+                      <div style={{ marginTop: "8px", padding: "12px", background: "var(--background-color)", borderRadius: "var(--radius-sm)" }}>
+                        {renderMessageContent(item.response_text || "")}
                       </div>
                     </div>
                   </div>

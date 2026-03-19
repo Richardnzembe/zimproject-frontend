@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
+import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
 
@@ -160,6 +161,7 @@ export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
   const [chatSessions, setChatSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [draftSessionId, setDraftSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState("general");
@@ -189,6 +191,15 @@ export default function AIChat({ onNavigate }) {
   const headerMenuRef = useRef(null);
   const modeMenuRef = useRef(null);
 
+  function getWelcomeMessage() {
+    return {
+      id: "welcome",
+      role: "assistant",
+      content: "Hi! I'm NotesAI-RNA AI, your research and writing assistant. What would you like to work on today?",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   function getSessionTitle(item) {
     const modeType = normalizeChatMode(item.mode || "general");
     const input = item.input_data || {};
@@ -202,29 +213,19 @@ export default function AIChat({ onNavigate }) {
   }
 
   function startNewChat() {
-    const newSession = {
-      id: crypto.randomUUID(),
-      title: "New Chat",
-      mode: "general",
-      input_data: {},
-      created_at: new Date().toISOString(),
-      items: [],
-    };
-
+    const nextDraftSessionId = crypto.randomUUID();
+    setDraftSessionId(nextDraftSessionId);
     setMode("general");
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Hi! I'm NotesAI-RNA AI, your research and writing assistant. What would you like to work on today?",
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-    setCurrentSessionId(newSession.id);
-    setChatSessions((prev) => [newSession, ...prev]);
+    setMessages([getWelcomeMessage()]);
+    setCurrentSessionId(nextDraftSessionId);
+    setDeleteConfirmId(null);
+    setRenameSessionId(null);
+    setRenameValue("");
+    setShareStatus("");
   }
 
   function openSession(session) {
+    setDraftSessionId(null);
     setCurrentSessionId(session.id);
     setMode(normalizeChatMode(session.mode || "general"));
     fetchShareLinks(session.id, session.input_data?.session_id || session.id);
@@ -252,15 +253,48 @@ export default function AIChat({ onNavigate }) {
     });
 
     if (reconstructedMessages.length === 0) {
-      reconstructedMessages.push({
-        id: "welcome",
-        role: "assistant",
-        content: "Hi! I'm NotesAI-RNA AI, your research and writing assistant. What would you like to work on today?",
-        timestamp: new Date().toISOString(),
-      });
+      reconstructedMessages.push(getWelcomeMessage());
     }
 
     setMessages(reconstructedMessages);
+  }
+
+  function upsertChatSession(prevSessions, sessionId, sessionTitle, sessionMode, inputData, historyItem) {
+    const existingIndex = prevSessions.findIndex((session) => session.id === sessionId);
+    const nextSession = {
+      id: sessionId,
+      title: sessionTitle,
+      mode: sessionMode,
+      input_data: inputData,
+      created_at: historyItem.created_at,
+      items: [historyItem],
+    };
+
+    if (existingIndex === -1) {
+      return [nextSession, ...prevSessions];
+    }
+
+    const existingSession = prevSessions[existingIndex];
+    const resolvedTitle =
+      existingSession.title && existingSession.title !== "New Chat"
+        ? existingSession.title
+        : sessionTitle;
+    const resolvedInputData =
+      existingSession.input_data && Object.keys(existingSession.input_data).length > 0
+        ? existingSession.input_data
+        : inputData;
+
+    return [
+      {
+        ...existingSession,
+        title: resolvedTitle,
+        mode: sessionMode,
+        input_data: resolvedInputData,
+        created_at: historyItem.created_at,
+        items: [...existingSession.items, historyItem],
+      },
+      ...prevSessions.filter((_, index) => index !== existingIndex),
+    ];
   }
 
   async function loadHistory({ preferRemote = false } = {}) {
@@ -325,11 +359,16 @@ export default function AIChat({ onNavigate }) {
     setChatSessions(sessionList);
 
     if (sessionList.length > 0) {
-      const activeSession =
-        sessionList.find((session) => session.id === currentSessionId) || sessionList[0];
-      openSession(activeSession);
+      const activeSession = sessionList.find((session) => session.id === currentSessionId);
+      if (activeSession) {
+        openSession(activeSession);
+      } else if (!(draftSessionId && currentSessionId === draftSessionId)) {
+        openSession(sessionList[0]);
+      }
     } else {
-      startNewChat();
+      if (!(draftSessionId && currentSessionId === draftSessionId)) {
+        startNewChat();
+      }
     }
   }
 
@@ -409,6 +448,7 @@ export default function AIChat({ onNavigate }) {
       setChatSessions([]);
       setMessages([]);
       setCurrentSessionId(null);
+      setDraftSessionId(null);
     }
   }, [authToken]);
 
@@ -591,7 +631,7 @@ export default function AIChat({ onNavigate }) {
 
   const copyToClipboard = async (text, id) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(normalizeOrderedListNumbering(text));
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
@@ -727,9 +767,24 @@ export default function AIChat({ onNavigate }) {
         if (data?.request_message) {
           setModelStatus(data.request_message);
         }
-        const responseText =
-          data.answer || data.result || data.project || JSON.stringify(data, null, 2);
+        const responseText = normalizeOrderedListNumbering(
+          data.answer || data.result || data.project || JSON.stringify(data, null, 2)
+        );
         const historyId = data?.history_id ?? null;
+        const createdAt = new Date().toISOString();
+        const localId = crypto.randomUUID();
+        const userId = getAuthUserId() || (await ensureAuthUserId());
+        const historyItem = {
+          local_id: localId,
+          user_id: userId || undefined,
+          mode,
+          input_data: body,
+          response_text: responseText,
+          created_at: createdAt,
+          local_only: true,
+          server_id: historyId || undefined,
+        };
+        const sessionTitle = messageToSend.slice(0, 40) || "New Chat";
 
         setMessages((prev) => [
           ...prev,
@@ -737,58 +792,19 @@ export default function AIChat({ onNavigate }) {
             id: Date.now().toString() + "-response",
             role: "assistant",
             content: responseText,
-            timestamp: new Date().toISOString(),
+            timestamp: createdAt,
           },
         ]);
 
-        if (messages.length === 1 && messages[0].id === "welcome") {
-          setChatSessions((prev) =>
-            prev.map((s) =>
-              s.id === currentSessionId
-                ? { ...s, title: messageToSend.slice(0, 40), mode }
-                : s
-            )
-          );
+        setChatSessions((prev) =>
+          upsertChatSession(prev, currentSessionId, sessionTitle, mode, body, historyItem)
+        );
+        if (draftSessionId === currentSessionId) {
+          setDraftSessionId(null);
         }
 
-        const userId = getAuthUserId() || (await ensureAuthUserId());
         if (userId) {
-          const localId = crypto.randomUUID();
-          await upsertHistoryItems([
-            {
-              local_id: localId,
-              user_id: userId,
-              mode,
-              input_data: body,
-              response_text: responseText,
-              created_at: new Date().toISOString(),
-              local_only: true,
-              server_id: historyId || undefined,
-            },
-          ]);
-
-          setChatSessions((prev) =>
-            prev.map((s) => {
-              if (s.id === currentSessionId) {
-                return {
-                  ...s,
-                  items: [
-                    ...s.items,
-                    {
-                      local_id: localId,
-                      user_id: userId,
-                      mode,
-                      input_data: body,
-                      response_text: responseText,
-                      created_at: new Date().toISOString(),
-                      server_id: historyId || undefined,
-                    },
-                  ],
-                };
-              }
-              return s;
-            })
-          );
+          await upsertHistoryItems([{ ...historyItem, user_id: userId }]);
         }
       }
     } catch (err) {
@@ -912,160 +928,15 @@ export default function AIChat({ onNavigate }) {
     }
   };
 
-
-  const renderInline = (text) => {
-    const parts = [];
-    let lastIndex = 0;
-    const regex = /\*\*(.+?)\*\*/g;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(text.slice(lastIndex, match.index));
-      }
-      parts.push(<strong key={`${match.index}-${match[1]}`}>{match[1]}</strong>);
-      lastIndex = match.index + match[0].length;
-    }
-    if (lastIndex < text.length) {
-      parts.push(text.slice(lastIndex));
-    }
-    return parts;
-  };
-
-  const renderMessageContent = (text) => {
-    const lines = text.split("\n");
-    const blocks = [];
-    let paragraph = [];
-    let listBuffer = [];
-    let listType = null;
-    const orderedRegex = /^\s*\d+([.)]|[:\-])\s*/;
-    const bulletRegex = /^\s*[-*\u2022]\s+/;
-
-    const normalizeLine = (value) => {
-      const cleaned = value.replace(/\s+/g, " ").trim();
-      const labelMatch = cleaned.match(/^(Guiding Question|Explanation|Summary|Key Point|Conclusion):\s*/i);
-      if (labelMatch) {
-        const label = labelMatch[1];
-        return `**${label}:** ${cleaned.slice(labelMatch[0].length)}`;
-      }
-      return cleaned;
-    };
-
-    const flushParagraph = () => {
-      if (paragraph.length) {
-        blocks.push({ type: "p", lines: [...paragraph] });
-        paragraph = [];
-      }
-    };
-
-    const flushList = () => {
-      if (listBuffer.length) {
-        blocks.push({ type: listType, items: [...listBuffer] });
-        listBuffer = [];
-        listType = null;
-      }
-    };
-
-    lines.forEach((raw, index) => {
-      const line = raw.trim();
-      if (!line) {
-        if (listType) {
-          const nextLine = lines.slice(index + 1).find((entry) => entry.trim());
-          if (nextLine) {
-            const trimmedNext = nextLine.trim();
-            if (orderedRegex.test(trimmedNext) || bulletRegex.test(trimmedNext)) {
-              return;
-            }
-          }
-        }
-        flushParagraph();
-        flushList();
-        return;
-      }
-
-      if (line.length <= 3 && !/[a-z0-9]/i.test(line)) {
-        flushParagraph();
-        flushList();
-        return;
-      }
-
-      const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
-      if (headingMatch) {
-        flushParagraph();
-        flushList();
-        blocks.push({
-          type: "h",
-          level: headingMatch[1].length,
-          text: normalizeLine(headingMatch[2]),
-        });
-        return;
-      }
-
-      const orderedMatch = line.match(orderedRegex);
-      const bulletMatch = line.match(bulletRegex);
-
-      if (orderedMatch) {
-        flushParagraph();
-        if (listType !== "ol") {
-          flushList();
-          listType = "ol";
-        }
-        listBuffer.push(normalizeLine(line.replace(orderedRegex, "")));
-        return;
-      }
-
-      if (bulletMatch) {
-        flushParagraph();
-        if (listType !== "ul") {
-          flushList();
-          listType = "ul";
-        }
-        listBuffer.push(normalizeLine(line.replace(bulletRegex, "")));
-        return;
-      }
-
-      flushList();
-      paragraph.push(normalizeLine(line));
-    });
-
-    flushParagraph();
-    flushList();
-
-    return (
-      <div className="chat-format">
-        {blocks.map((block, idx) => {
-          if (block.type === "h") {
-            const Tag = `h${Math.min(Math.max(block.level, 2), 4)}`;
-            return <Tag key={`h-${idx}`}>{renderInline(block.text)}</Tag>;
-          }
-          if (block.type === "p") {
-            return (
-              <p key={`p-${idx}`}>
-                {renderInline(block.lines.join(" "))}
-              </p>
-            );
-          }
-          if (block.type === "ol") {
-            return (
-              <ol key={`ol-${idx}`}>
-                {block.items.map((item, i) => (
-                  <li key={`oli-${i}`}>{renderInline(item)}</li>
-                ))}
-              </ol>
-            );
-          }
-          return (
-            <ul key={`ul-${idx}`}>
-              {block.items.map((item, i) => (
-                <li key={`uli-${i}`}>{renderInline(item)}</li>
-              ))}
-            </ul>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const isNewChat = messages.length === 1 && messages[0].id === "welcome";
+  const isDraftSession = Boolean(draftSessionId && currentSessionId === draftSessionId);
+  const isNewChat =
+    isDraftSession && messages.length === 1 && messages[0]?.id === "welcome";
+  const draftSessionTitle =
+    messages.find((message) => message.role === "user")?.content?.slice(0, 40) || "New Chat";
+  const sidebarSessions =
+    isDraftSession && currentSessionId
+      ? [{ id: currentSessionId, title: draftSessionTitle, isDraft: true }, ...chatSessions]
+      : chatSessions;
   const currentShare =
     shareInfoBySession[currentSessionId]?.find((s) => s.permission === "collab") ||
     shareInfoBySession[currentSessionId]?.[0];
@@ -1097,18 +968,22 @@ export default function AIChat({ onNavigate }) {
         </div>
 
         <div className="sidebar-content">
-          {chatSessions.length === 0 ? (
+          {sidebarSessions.length === 0 ? (
             <div style={{ padding: "20px", textAlign: "center", color: "#8e8e8e", fontSize: "0.875rem" }}>
               No chat history yet
             </div>
           ) : (
             <div className="sidebar-section">
               <div className="sidebar-section-title">Recent Chats</div>
-              {chatSessions.map((session) => (
+              {sidebarSessions.map((session) => (
                 <div
                   key={session.id}
                   className={`sidebar-chat-item ${session.id === currentSessionId ? "active" : ""}`}
-                  onClick={() => openSession(session)}
+                  onClick={() => {
+                    if (!session.isDraft) {
+                      openSession(session);
+                    }
+                  }}
                 >
                   {renameSessionId === session.id ? (
                     <input
@@ -1135,7 +1010,7 @@ export default function AIChat({ onNavigate }) {
                   ) : (
                     <>
                       <span className="sidebar-chat-item-title">{session.title}</span>
-                      {deleteConfirmId === session.id ? (
+                      {session.isDraft ? null : deleteConfirmId === session.id ? (
                         <div style={{ display: "flex", gap: "6px" }}>
                           <button onClick={(e) => deleteSession(session.id, e)} title="Confirm delete">
                             Confirm
@@ -1384,7 +1259,7 @@ export default function AIChat({ onNavigate }) {
                         createShareLink("read", currentSessionId);
                         setHeaderMenuOpen(false);
                       }}
-                      disabled={isNewChat}
+                      disabled={isDraftSession}
                       title="Share read-only link"
                     >
                       Share
@@ -1394,7 +1269,7 @@ export default function AIChat({ onNavigate }) {
                         createShareLink("collab", currentSessionId);
                         setHeaderMenuOpen(false);
                       }}
-                      disabled={isNewChat}
+                      disabled={isDraftSession}
                       title="Create collaboration link"
                     >
                       Collaborate
