@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NotesAI-RNA</string>
+    <string name="title_activity_main">NotesAI-RNA</string>
+    <string name="package_name">com.notesairna.app</string>
+    <string name="custom_url_scheme">com.notesairna.app</string>
+</resources>

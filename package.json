@@ -7,10 +7,18 @@
     "dev": "vite",
     "start-all": "concurrently \"cd ../zimproject_backend && python manage.py runserver\" \"npm run dev\"",
     "build": "vite build",
+    "android:add": "cap add android",
+    "android:copy": "cap copy android",
+    "android:prepare": "npm run build && cap sync android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "idb": "^8.0.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -34,5 +42,3 @@
     "vite-plugin-pwa": "^1.2.0"
   }
 }
-
-

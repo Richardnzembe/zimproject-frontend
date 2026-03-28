@@ -1,0 +1,6 @@
+{
+  "appId": "com.notesairna.app",
+  "appName": "NotesAI-RNA",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
