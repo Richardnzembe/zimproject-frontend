@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.notesairna.twa",
+      "sha256_cert_fingerprints": [
+        "3C:EF:45:BC:FD:C2:FC:A4:EF:C4:74:52:94:12:3B:EE:A2:9C:DA:AE:9B:DE:D1:63:38:2A:DA:4A:E4:C8:47:0D"
+      ]
+    }
+  }
+]
