@@ -74,6 +74,45 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     return fallback;
   }, []);
 
+  const handleGoogleCredential = useCallback(async (credential) => {
+    const tokenValue = (credential || "").trim();
+    if (!tokenValue) {
+      setStatus("Google login failed.");
+      return;
+    }
+
+    setLoading(true);
+    setStatus("");
+
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/google/`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: tokenValue }),
+      });
+
+      const data = await safeJson(res);
+      if (!res.ok) {
+        setStatus(extractErrorMessage(data, `Google login failed (${res.status})`));
+        setLoading(false);
+        return;
+      }
+
+      await setTokens(data);
+      window.dispatchEvent(new Event("auth-changed"));
+      setStatus("Logged in with Google!");
+      setMode("login");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error(err);
+      setStatus("Google login error");
+    }
+
+    setLoading(false);
+  }, [extractErrorMessage, safeJson]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const uid = params.get("uid");
@@ -281,45 +320,6 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
     setLoading(false);
   };
-
-  const handleGoogleCredential = useCallback(async (credential) => {
-    const tokenValue = (credential || "").trim();
-    if (!tokenValue) {
-      setStatus("Google login failed.");
-      return;
-    }
-
-    setLoading(true);
-    setStatus("");
-
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/google/`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: tokenValue }),
-      });
-
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Google login failed (${res.status})`));
-        setLoading(false);
-        return;
-      }
-
-      await setTokens(data);
-      window.dispatchEvent(new Event("auth-changed"));
-      setStatus("Logged in with Google!");
-      setMode("login");
-      setPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      console.error(err);
-      setStatus("Google login error");
-    }
-
-    setLoading(false);
-  }, [extractErrorMessage, safeJson]);
 
   const handleLogout = async () => {
     await clearTokens();
