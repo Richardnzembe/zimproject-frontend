@@ -40,7 +40,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [showKey, setShowKey] = useState(false);
   const [profileId, setProfileId] = useState(null);
 
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const envGoogleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const [googleClientId, setGoogleClientId] = useState(envGoogleClientId);
   const googleButtonRef = useRef(null);
   const googleInitializedRef = useRef(false);
 
@@ -112,6 +113,34 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
     setLoading(false);
   }, [extractErrorMessage, safeJson]);
+
+  useEffect(() => {
+    if (googleClientId) return;
+    if (!envGoogleClientId) {
+      // If VITE_GOOGLE_CLIENT_ID was not baked into the build, try runtime config from the API.
+      let isActive = true;
+      const loadGoogleConfig = async () => {
+        try {
+          const res = await fetch(`${getApiBaseUrl()}/api/auth/google/config/`, {
+            method: "GET",
+            credentials: "include",
+          });
+          const data = await safeJson(res);
+          const clientId = (data?.clientId || "").trim();
+          if (res.ok && clientId && isActive) {
+            setGoogleClientId(clientId);
+          }
+        } catch {
+          // Best effort: keep Google disabled if config cannot be loaded.
+        }
+      };
+      loadGoogleConfig();
+      return () => {
+        isActive = false;
+      };
+    }
+    return undefined;
+  }, [envGoogleClientId, googleClientId, safeJson]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
