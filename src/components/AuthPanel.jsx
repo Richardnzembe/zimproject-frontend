@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuthUserId } from "../lib/api";
 
 const PIN_STORAGE_KEY = "notex_device_pin_hash";
@@ -40,19 +40,23 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [showKey, setShowKey] = useState(false);
   const [profileId, setProfileId] = useState(null);
 
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+  const googleButtonRef = useRef(null);
+  const googleInitializedRef = useRef(false);
+
   const token = getAuthToken();
   const userId = getAuthUserId();
   const hasPin = Boolean(localStorage.getItem(PIN_STORAGE_KEY));
 
-  const safeJson = async (res) => {
+  const safeJson = useCallback(async (res) => {
     try {
       return await res.json();
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  const extractErrorMessage = (data, fallback) => {
+  const extractErrorMessage = useCallback((data, fallback) => {
     if (!data) return fallback;
     if (typeof data === "string") return data;
     if (data.detail) return data.detail;
@@ -68,7 +72,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       if (typeof value === "string") return `${firstKey}: ${value}`;
     }
     return fallback;
-  };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -136,6 +140,59 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       isActive = false;
     };
   }, [token]);
+
+  useEffect(() => {
+    if (token) return;
+    if (!googleClientId) return;
+    if (resetStep) return;
+
+    let cancelled = false;
+    let intervalId = null;
+
+    const tryRender = () => {
+      const container = googleButtonRef.current;
+      const google = window.google;
+      if (!container || !google?.accounts?.id) return false;
+
+      if (!googleInitializedRef.current) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: (response) => {
+            handleGoogleCredential(response?.credential);
+          },
+          cancel_on_tap_outside: true,
+        });
+        googleInitializedRef.current = true;
+      }
+
+      container.innerHTML = "";
+      google.accounts.id.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        text: mode === "register" ? "signup_with" : "continue_with",
+        shape: "rectangular",
+        logo_alignment: "left",
+        width: 360,
+      });
+      return true;
+    };
+
+    if (tryRender()) {
+      return undefined;
+    }
+
+    intervalId = window.setInterval(() => {
+      if (cancelled) return;
+      if (tryRender()) {
+        window.clearInterval(intervalId);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [googleClientId, handleGoogleCredential, mode, resetStep, token]);
 
   const handleLogin = async () => {
     const safeUsername = username.trim();
@@ -224,6 +281,45 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
     setLoading(false);
   };
+
+  const handleGoogleCredential = useCallback(async (credential) => {
+    const tokenValue = (credential || "").trim();
+    if (!tokenValue) {
+      setStatus("Google login failed.");
+      return;
+    }
+
+    setLoading(true);
+    setStatus("");
+
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/google/`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: tokenValue }),
+      });
+
+      const data = await safeJson(res);
+      if (!res.ok) {
+        setStatus(extractErrorMessage(data, `Google login failed (${res.status})`));
+        setLoading(false);
+        return;
+      }
+
+      await setTokens(data);
+      window.dispatchEvent(new Event("auth-changed"));
+      setStatus("Logged in with Google!");
+      setMode("login");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error(err);
+      setStatus("Google login error");
+    }
+
+    setLoading(false);
+  }, [extractErrorMessage, safeJson]);
 
   const handleLogout = async () => {
     await clearTokens();
@@ -799,6 +895,14 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   </>
                 )}
               </div>
+              {googleClientId && (
+                <>
+                  <div className="auth-divider">or</div>
+                  <div className="auth-google">
+                    <div ref={googleButtonRef} />
+                  </div>
+                </>
+              )}
             </>
           )}
         </>

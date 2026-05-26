@@ -1112,6 +1112,28 @@ textarea {
   width: 100%;
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 12px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.auth-google {
+  display: flex;
+  justify-content: center;
+}
+
 /* ===== History Items ===== */
 .history-list {
   display: flex;
