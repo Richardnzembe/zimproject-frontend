@@ -501,11 +501,14 @@ export default function AIChat({ onNavigate }) {
         { method: "GET" }
       );
       const data = await res.json().catch(() => []);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("Failed to fetch share links for session:", sessionId, res.status);
+        return;
+      }
       const info = Array.isArray(data) ? data : [];
       setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn("Failed to fetch share links:", err);
     }
   };
 
@@ -747,10 +750,10 @@ export default function AIChat({ onNavigate }) {
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const errorMessage = data?.detail || data?.error || "AI request failed";
+        const errorMessage = data?.detail || data?.error || `AI request failed (${res.status})`;
         if (data?.request_message) {
           setModelStatus(data.request_message);
         }
@@ -760,6 +763,16 @@ export default function AIChat({ onNavigate }) {
             id: Date.now().toString() + "-error",
             role: "assistant",
             content: `Error: ${errorMessage}`,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      } else if (!data) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString() + "-error",
+            role: "assistant",
+            content: "Received an empty response from the server. Please try again.",
             timestamp: new Date().toISOString(),
           },
         ]);

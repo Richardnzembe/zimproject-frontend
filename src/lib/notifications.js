@@ -273,12 +273,22 @@ export function useNotificationFeed() {
   }, []);
 
   useEffect(() => {
-    const rawItems = localStorage.getItem(keyFor(userScope, "items"));
-    const parsedItems = rawItems ? JSON.parse(rawItems) : [];
+    let parsedItems = [];
+    try {
+      const rawItems = localStorage.getItem(keyFor(userScope, "items"));
+      parsedItems = rawItems ? JSON.parse(rawItems) : [];
+    } catch {
+      parsedItems = [];
+    }
     setNotifications(Array.isArray(parsedItems) ? parsedItems : []);
 
-    const rawSeen = localStorage.getItem(keyFor(userScope, "seen"));
-    const parsedSeen = rawSeen ? JSON.parse(rawSeen) : [];
+    let parsedSeen = [];
+    try {
+      const rawSeen = localStorage.getItem(keyFor(userScope, "seen"));
+      parsedSeen = rawSeen ? JSON.parse(rawSeen) : [];
+    } catch {
+      parsedSeen = [];
+    }
     seenIdsRef.current = new Set(Array.isArray(parsedSeen) ? parsedSeen : []);
   }, [userScope]);
 

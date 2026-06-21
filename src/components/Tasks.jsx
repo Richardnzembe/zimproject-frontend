@@ -218,8 +218,9 @@ const Tasks = () => {
             },
           ]);
         }
-      } catch {
-        // keep as pending and retry on next cycle
+      } catch (err) {
+        console.error("Sync failed for task:", task.local_id, err);
+        setStatus("Some tasks failed to sync. Will retry shortly.");
       }
     }
 
@@ -297,13 +298,16 @@ const Tasks = () => {
         { method: "GET" }
       );
       const data = await safeJson(res);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("Failed to fetch share links for task:", taskId, res.status);
+        return;
+      }
       setShareInfoByTask((prev) => ({
         ...prev,
         [taskId]: Array.isArray(data) ? data : [],
       }));
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn("Failed to fetch share links:", err);
     }
   };
 

@@ -206,10 +206,13 @@ const Notes = ({ onOpenAI }) => {
         { method: "GET" }
       );
       const data = await res.json().catch(() => []);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("Failed to fetch share links for note:", noteId, res.status);
+        return;
+      }
       setShareInfo(Array.isArray(data) ? data : []);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn("Failed to fetch share links:", err);
     }
   };
 
@@ -478,7 +481,8 @@ const Notes = ({ onOpenAI }) => {
           ]);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Sync failed for note:", note.local_id, err);
+        setStatus("Some notes failed to sync. Will retry shortly.");
       }
     }
 
@@ -753,11 +757,13 @@ const Notes = ({ onOpenAI }) => {
         body: JSON.stringify({ note_content: note.content, action }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         const errorText = data?.error || data?.detail || `AI request failed (${res.status})`;
         const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
         setAIResult(`${requestMessage}${errorText}`);
+      } else if (!data) {
+        setAIResult("Received an empty response from AI.");
       } else {
         const responseText = data.updated_note || "No response from AI.";
         const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
