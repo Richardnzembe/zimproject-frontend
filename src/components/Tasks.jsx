@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId } from "../lib/api";
 import {
   deleteLocalTask,
@@ -6,6 +6,9 @@ import {
   replaceUserTasks,
   upsertTasks,
 } from "../db";
+import { safeJson, flashStatus } from "../lib/utils";
+import { inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi, fetchShareLinks as fetchShareLinksApi, createShareLink as createShareLinkApi } from "../lib/sharing";
+import { useOnlineSync } from "../lib/hooks";
 
 const PRIORITIES = ["low", "medium", "high"];
 
@@ -55,14 +58,6 @@ const Tasks = () => {
     priority: "medium",
     due_date: "",
   });
-
-  const safeJson = async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
-  };
 
   const buildLocalFromServer = (item, userId) => ({
     local_id: `server-${item.id}`,
@@ -291,19 +286,12 @@ const Tasks = () => {
   const fetchShareLinks = async (taskId) => {
     const token = getAuthToken();
     if (!token || !taskId) return;
-    try {
-      const res = await authFetch(
-        `${getApiBaseUrl()}/api/share/links/?resource_type=task&task_id=${taskId}`,
-        { method: "GET" }
-      );
-      const data = await safeJson(res);
-      if (!res.ok) return;
-      setShareInfoByTask((prev) => ({
-        ...prev,
-        [taskId]: Array.isArray(data) ? data : [],
-      }));
-    } catch {
-      // ignore
+    const info = await fetchShareLinksApi({
+      resourceType: "task",
+      queryParams: { task_id: taskId },
+    });
+    if (info) {
+      setShareInfoByTask((prev) => ({ ...prev, [taskId]: info }));
     }
   };
 
@@ -312,107 +300,68 @@ const Tasks = () => {
       setShareStatus("Please sync the task before sharing.");
       return;
     }
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/create/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resource_type: "task",
-          task_id: task.server_id,
-          permission,
-        }),
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to create share link.");
-        return;
-      }
-      setShareInfoByTask((prev) => {
-        const existing = prev[task.server_id] || [];
-        return {
-          ...prev,
-          [task.server_id]: [
-            ...existing.filter((item) => item.permission !== permission),
-            data,
-          ],
-        };
-      });
-      const url = `${window.location.origin}?share=${data.token}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus("Share link copied.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to create share link.");
+    const result = await createShareLinkApi({
+      resourceType: "task",
+      permission,
+      body: { task_id: task.server_id },
+    });
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoByTask((prev) => {
+      const existing = prev[task.server_id] || [];
+      return {
+        ...prev,
+        [task.server_id]: [
+          ...existing.filter((item) => item.permission !== permission),
+          result.data,
+        ],
+      };
+    });
+    await navigator.clipboard.writeText(result.url);
+    flashStatus(setShareStatus, "Share link copied.");
   };
 
   const inviteUserToShare = async (shareToken) => {
-    const username = window.prompt("Enter username to invite:");
-    if (!username || !shareToken) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/invite/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to send invite.");
-        return;
-      }
-      setShareStatus("Invite sent.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to send invite.");
+    const result = await inviteUserApi(shareToken);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    if (result.success) flashStatus(setShareStatus, "Invite sent.");
   };
 
   const removeMemberFromTaskShare = async (taskId, shareToken, userId) => {
     if (!taskId || !shareToken || !userId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/members/${userId}/`, {
-        method: "DELETE",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to remove member.");
-        return;
-      }
-      setShareInfoByTask((prev) => ({
-        ...prev,
-        [taskId]: (prev[taskId] || []).map((share) =>
-          share.token === shareToken
-            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-            : share
-        ),
-      }));
-      setShareStatus("Member removed.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to remove member.");
+    const result = await removeMemberApi(shareToken, userId);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoByTask((prev) => ({
+      ...prev,
+      [taskId]: (prev[taskId] || []).map((share) =>
+        share.token === shareToken
+          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+          : share
+      ),
+    }));
+    flashStatus(setShareStatus, "Member removed.");
   };
 
   const revokeTaskShare = async (taskId, shareToken) => {
     if (!taskId || !shareToken) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/revoke/`, {
-        method: "POST",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to revoke share link.");
-        return;
-      }
-      setShareInfoByTask((prev) => ({
-        ...prev,
-        [taskId]: (prev[taskId] || []).filter((share) => share.token !== shareToken),
-      }));
-      setShareStatus("Share link revoked.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to revoke share link.");
+    const result = await revokeShareApi(shareToken);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoByTask((prev) => ({
+      ...prev,
+      [taskId]: (prev[taskId] || []).filter((share) => share.token !== shareToken),
+    }));
+    flashStatus(setShareStatus, "Share link revoked.");
   };
 
   const editTask = (task) => {
@@ -515,22 +464,9 @@ const Tasks = () => {
     return () => window.removeEventListener("auth-changed", onAuthChange);
   }, []);
 
-  useEffect(() => {
-    const onOnline = () => {
-      syncPendingTasks();
-      loadApiTasks();
-    };
-    window.addEventListener("online", onOnline);
-    const interval = setInterval(() => {
-      if (navigator.onLine) {
-        syncPendingTasks();
-      }
-    }, 30000);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      clearInterval(interval);
-    };
-  }, []);
+  const syncTasksCb = useCallback(() => syncPendingTasks(), []);
+  const loadTasksCb = useCallback(() => loadApiTasks(), []);
+  useOnlineSync({ syncFn: syncTasksCb, loadFn: loadTasksCb });
 
   useEffect(() => {
     const serverTaskIds = tasks

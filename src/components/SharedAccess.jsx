@@ -1,12 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId } from "../lib/api";
 import { renderMessageContent } from "../lib/chatFormatting";
-
-const BackIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M19 12H5M12 19l-7-7 7-7"></path>
-  </svg>
-);
+import { BackIcon } from "../lib/icons";
 
 export default function SharedAccess({ token, onNavigate }) {
   const [loading, setLoading] = useState(true);

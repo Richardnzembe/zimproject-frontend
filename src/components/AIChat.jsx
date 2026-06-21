@@ -1,161 +1,14 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
 import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
+import { PlusIcon, SendIcon, MenuIcon, ChevronLeftIcon, ChevronRightIcon, HomeIcon, NotesIcon, UserIcon, LogoutIcon, EditIcon, TrashIcon, LinkIcon, UsersIcon, CopyIcon, CheckIcon, BotIcon } from "../lib/icons";
+import { USER_OPENROUTER_MODEL_STORAGE, AI_HEADER_VISIBILITY_STORAGE, FREE_OPENROUTER_MODELS, CHAT_MODES, normalizeChatMode, getChatModeLabel } from "../lib/constants";
+import { flashStatus } from "../lib/utils";
+import { createShareLink as createShareLinkApi, inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi, fetchShareLinks as fetchShareLinksApi } from "../lib/sharing";
+import { useClickOutside, useAutoResize } from "../lib/hooks";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
-
-// Icons
-const PlusIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);
-
-const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <line x1="22" y1="2" x2="11" y2="13"></line>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-  </svg>
-);
-
-const MenuIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <line x1="3" y1="12" x2="21" y2="12"></line>
-    <line x1="3" y1="6" x2="21" y2="6"></line>
-    <line x1="3" y1="18" x2="21" y2="18"></line>
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <polyline points="15 18 9 12 15 6"></polyline>
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <polyline points="9 18 15 12 9 6"></polyline>
-  </svg>
-);
-
-const HomeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-  </svg>
-);
-
-const NotesIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-  </svg>
-);
-
-const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-    <circle cx="12" cy="7" r="4"></circle>
-  </svg>
-);
-
-const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-    <polyline points="16 17 21 12 16 7"></polyline>
-    <line x1="21" y1="12" x2="9" y2="12"></line>
-  </svg>
-);
-
-const EditIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <polyline points="3 6 5 6 21 6"></polyline>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-  </svg>
-);
-
-const LinkIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M10 13a5 5 0 0 1 0-7l2-2a5 5 0 0 1 7 7l-1 1"></path>
-    <path d="M14 11a5 5 0 0 1 0 7l-2 2a5 5 0 0 1-7-7l1-1"></path>
-  </svg>
-);
-
-const UsersIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-    <circle cx="9" cy="7" r="4"></circle>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-  </svg>
-);
-
-const CopyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>
-);
-
-const BotIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <rect x="2" y="2" width="20" height="20" rx="2"></rect>
-    <path d="M12 8v8"></path>
-    <path d="M8 12h8"></path>
-  </svg>
-);
-
-const ChatIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
-
-const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
-const AI_HEADER_VISIBILITY_STORAGE = "NotesAI-RNA_ai_header_visible";
-const FREE_OPENROUTER_MODELS = [
-  { value: "auto", label: "Auto (OpenRouter default)" },
-  { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
-  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B Instruct (Free)" },
-  { value: "qwen/qwen-2.5-72b-instruct:free", label: "Qwen 2.5 72B Instruct (Free)" },
-  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
-  { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
-];
-const CHAT_MODES = [
-  { value: "general", label: "General", description: "Quick answers and everyday help." },
-  { value: "research", label: "Deep Research", description: "Structured analysis, tradeoffs, and deeper reasoning." },
-  { value: "writing", label: "Writing", description: "Draft, rewrite, and polish text clearly." },
-];
-
-const normalizeChatMode = (value) => {
-  if (value === "study" || value === "project") {
-    return "research";
-  }
-  if (value === "writing" || value === "research" || value === "general") {
-    return value;
-  }
-  return "general";
-};
-
-const getChatModeLabel = (value) =>
-  CHAT_MODES.find((item) => item.value === normalizeChatMode(value))?.label || "General";
 
 export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
@@ -223,6 +76,24 @@ export default function AIChat({ onNavigate }) {
     setRenameValue("");
     setShareStatus("");
   }
+
+  const formatInputData = (input_data) => {
+    if (!input_data) return "";
+    if (input_data.question) return input_data.question;
+    if (input_data.notes) return input_data.notes;
+    if (input_data.project_name) return input_data.project_name;
+    return JSON.stringify(input_data);
+  };
+
+  const fetchShareLinks = async (sessionId, sessionKey) => {
+    const info = await fetchShareLinksApi({
+      resourceType: "chat",
+      queryParams: { session_id: sessionKey },
+    });
+    if (info) {
+      setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
+    }
+  };
 
   function openSession(session) {
     setDraftSessionId(null);
@@ -388,50 +259,10 @@ export default function AIChat({ onNavigate }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const closeModeMenuOnOutsideClick = (event) => {
-      const clickedInsideMode =
-        modeMenuRef.current && modeMenuRef.current.contains(event.target);
-      if (!clickedInsideMode) {
-        setModeMenuOpen(false);
-      }
-    };
-
-    const closeModeMenuOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setModeMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", closeModeMenuOnOutsideClick);
-    document.addEventListener("keydown", closeModeMenuOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeModeMenuOnOutsideClick);
-      document.removeEventListener("keydown", closeModeMenuOnEscape);
-    };
-  }, []);
-
-  useEffect(() => {
-    const closeOnOutsideClick = (event) => {
-      if (!headerMenuRef.current) return;
-      if (!headerMenuRef.current.contains(event.target)) {
-        setHeaderMenuOpen(false);
-      }
-    };
-
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setHeaderMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
+  const closeModeMenu = useCallback(() => setModeMenuOpen(false), []);
+  const closeHeaderMenu = useCallback(() => setHeaderMenuOpen(false), []);
+  useClickOutside(modeMenuRef, closeModeMenu);
+  useClickOutside(headerMenuRef, closeHeaderMenu);
 
   // Auth change listener
   useEffect(() => {
@@ -486,147 +317,78 @@ export default function AIChat({ onNavigate }) {
   }, [messages]);
 
   // Auto-resize input as content grows
-  useEffect(() => {
-    if (!inputRef.current) return;
-    inputRef.current.style.height = "auto";
-    inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
-  }, [input]);
-
-  const fetchShareLinks = async (sessionId, sessionKey) => {
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      const res = await authFetch(
-        `${getApiBaseUrl()}/api/share/links/?resource_type=chat&session_id=${encodeURIComponent(sessionKey)}`,
-        { method: "GET" }
-      );
-      const data = await res.json().catch(() => []);
-      if (!res.ok) return;
-      const info = Array.isArray(data) ? data : [];
-      setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
-    } catch {
-      // ignore
-    }
-  };
+  useAutoResize(inputRef, input);
 
   const createShareLink = async (permission, sessionId = currentSessionId) => {
     if (!sessionId) return;
     const session = chatSessions.find((s) => s.id === sessionId);
     const sessionKey = session?.input_data?.session_id || sessionId;
-    try {
-      const historyIds =
-        session?.items
-          ?.map((item) => item?.server_id || (typeof item?.id === "number" ? item.id : null))
-          .filter(Boolean) || [];
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/create/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resource_type: "chat",
-          session_id: sessionKey,
-          history_ids: historyIds,
-          permission,
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to create share link.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [sessionId]: [
-          ...(prev[sessionId] || []).filter((s) => s.permission !== permission),
-          data,
-        ],
-      }));
-      const url = `${window.location.origin}?share=${data.token}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus("Share link copied.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to create share link.");
+    const historyIds =
+      session?.items
+        ?.map((item) => item?.server_id || (typeof item?.id === "number" ? item.id : null))
+        .filter(Boolean) || [];
+    const result = await createShareLinkApi({
+      resourceType: "chat",
+      permission,
+      body: { session_id: sessionKey, history_ids: historyIds },
+    });
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [sessionId]: [
+        ...(prev[sessionId] || []).filter((s) => s.permission !== permission),
+        result.data,
+      ],
+    }));
+    await navigator.clipboard.writeText(result.url);
+    flashStatus(setShareStatus, "Share link copied.");
   };
 
   const inviteUserToShare = async () => {
     const share = currentShare;
     if (!share?.token) return;
-    const username = window.prompt("Enter username to invite:");
-    if (!username) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${share.token}/invite/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to send invite.");
-        return;
-      }
-      setShareStatus("Invite sent.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to send invite.");
+    const result = await inviteUserApi(share.token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    if (result.success) flashStatus(setShareStatus, "Invite sent.");
   };
 
   const removeMemberFromShare = async (shareToken, userId) => {
     if (!shareToken || !userId || !currentSessionId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/members/${userId}/`, {
-        method: "DELETE",
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to remove member.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [currentSessionId]: (prev[currentSessionId] || []).map((share) =>
-          share.token === shareToken
-            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-            : share
-        ),
-      }));
-      setShareStatus("Member removed.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to remove member.");
+    const result = await removeMemberApi(shareToken, userId);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [currentSessionId]: (prev[currentSessionId] || []).map((share) =>
+        share.token === shareToken
+          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+          : share
+      ),
+    }));
+    flashStatus(setShareStatus, "Member removed.");
   };
 
   const revokeShareLink = async () => {
     const share = currentShare;
     if (!share?.token || !currentSessionId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${share.token}/revoke/`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to revoke share link.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [currentSessionId]: (prev[currentSessionId] || []).filter((item) => item.token !== share.token),
-      }));
-      setShareStatus("Share link revoked.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to revoke share link.");
+    const result = await revokeShareApi(share.token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
-  };
-
-  const formatInputData = (input_data) => {
-    if (!input_data) return "";
-    if (input_data.question) return input_data.question;
-    if (input_data.notes) return input_data.notes;
-    if (input_data.project_name) return input_data.project_name;
-    return JSON.stringify(input_data);
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [currentSessionId]: (prev[currentSessionId] || []).filter((item) => item.token !== share.token),
+    }));
+    flashStatus(setShareStatus, "Share link revoked.");
   };
 
   const copyToClipboard = async (text, id) => {

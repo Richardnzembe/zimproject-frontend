@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import ImageToText from "./ImageToText";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
 import {
@@ -8,40 +8,11 @@ import {
   deleteLocalNote,
   upsertHistoryItems,
 } from "../db";
-
-const SummarizeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <line x1="21" y1="10" x2="3" y2="10"></line>
-    <line x1="21" y1="6" x2="3" y2="6"></line>
-    <line x1="21" y1="14" x2="3" y2="14"></line>
-    <line x1="21" y1="18" x2="3" y2="18"></line>
-  </svg>
-);
-
-const ExplainIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <circle cx="12" cy="12" r="10"></circle>
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>
-);
-
-const QuestionIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>
-);
-
-const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
-const FREE_OPENROUTER_MODELS = [
-  { value: "auto", label: "Auto (OpenRouter default)" },
-  { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
-  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B Instruct (Free)" },
-  { value: "qwen/qwen-2.5-72b-instruct:free", label: "Qwen 2.5 72B Instruct (Free)" },
-  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
-  { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
-];
+import { SummarizeIcon, ExplainIcon, QuestionIcon } from "../lib/icons";
+import { USER_OPENROUTER_MODEL_STORAGE, FREE_OPENROUTER_MODELS } from "../lib/constants";
+import { safeJson, flashStatus } from "../lib/utils";
+import { inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi, fetchShareLinks as fetchShareLinksApi, createShareLink as createShareLinkApi } from "../lib/sharing";
+import { useOnlineSync } from "../lib/hooks";
 
 const hasHtmlTags = (value) => /<[^>]+>/.test(value || "");
 
@@ -97,13 +68,7 @@ const Notes = ({ onOpenAI }) => {
     content: "",
   });
 
-  const safeJson = async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
-  };
+
 
   const normalizeTags = (tags) => {
     if (Array.isArray(tags)) return tags;
@@ -198,55 +163,34 @@ const Notes = ({ onOpenAI }) => {
   };
 
   const fetchShareLinks = async (noteId) => {
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      const res = await authFetch(
-        `${getApiBaseUrl()}/api/share/links/?resource_type=note&note_id=${noteId}`,
-        { method: "GET" }
-      );
-      const data = await res.json().catch(() => []);
-      if (!res.ok) return;
-      setShareInfo(Array.isArray(data) ? data : []);
-    } catch {
-      // ignore
-    }
+    const info = await fetchShareLinksApi({
+      resourceType: "note",
+      queryParams: { note_id: noteId },
+    });
+    if (info) setShareInfo(info);
   };
 
   const generateShareLink = async (permission, noteId, { autoCopy = false } = {}) => {
     if (!noteId) {
       return { error: "Please sync the note before sharing." };
     }
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/create/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resource_type: "note",
-          note_id: noteId,
-          permission,
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        return { error: data?.detail || "Unable to create share link." };
-      }
-      if (activeNote?.server_id === noteId) {
-        setShareInfo((prev) => [
-          ...prev.filter((s) => s.permission !== permission),
-          data,
-        ]);
-      }
-      const url = `${window.location.origin}?share=${data.token}`;
-      if (autoCopy) {
-        await navigator.clipboard.writeText(url);
-        setShareStatus("Share link copied.");
-        setTimeout(() => setShareStatus(""), 2500);
-      }
-      return { url, data };
-    } catch {
-      return { error: "Unable to create share link." };
+    const result = await createShareLinkApi({
+      resourceType: "note",
+      permission,
+      body: { note_id: noteId },
+    });
+    if (result.error) return result;
+    if (activeNote?.server_id === noteId) {
+      setShareInfo((prev) => [
+        ...prev.filter((s) => s.permission !== permission),
+        result.data,
+      ]);
     }
+    if (autoCopy) {
+      await navigator.clipboard.writeText(result.url);
+      flashStatus(setShareStatus, "Share link copied.");
+    }
+    return result;
   };
 
   const openShareDialog = async (note, permission) => {
@@ -315,24 +259,12 @@ const Notes = ({ onOpenAI }) => {
   };
 
   const inviteUserToShare = async (token) => {
-    const username = window.prompt("Enter username to invite:");
-    if (!username || !token) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/invite/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to send invite.");
-        return;
-      }
-      setShareStatus("Invite sent.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to send invite.");
+    const result = await inviteUserApi(token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    if (result.success) flashStatus(setShareStatus, "Invite sent.");
   };
 
   const handleInviteUser = async () => {
@@ -354,46 +286,30 @@ const Notes = ({ onOpenAI }) => {
 
   const removeMemberFromShare = async (token, userId) => {
     if (!token || !userId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/members/${userId}/`, {
-        method: "DELETE",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to remove member.");
-        return;
-      }
-      setShareInfo((prev) =>
-        prev.map((share) =>
-          share.token === token
-            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-            : share
-        )
-      );
-      setShareStatus("Member removed.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to remove member.");
+    const result = await removeMemberApi(token, userId);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfo((prev) =>
+      prev.map((share) =>
+        share.token === token
+          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+          : share
+      )
+    );
+    flashStatus(setShareStatus, "Member removed.");
   };
 
   const revokeShareLink = async (token) => {
     if (!token) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/revoke/`, {
-        method: "POST",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to revoke share link.");
-        return;
-      }
-      setShareInfo((prev) => prev.filter((share) => share.token !== token));
-      setShareStatus("Share link revoked.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to revoke share link.");
+    const result = await revokeShareApi(token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfo((prev) => prev.filter((share) => share.token !== token));
+    flashStatus(setShareStatus, "Share link revoked.");
   };
 
   const syncPendingNotes = async () => {
@@ -531,22 +447,9 @@ const Notes = ({ onOpenAI }) => {
     return () => window.removeEventListener("auth-changed", onAuthChange);
   }, []);
 
-  useEffect(() => {
-    const onOnline = () => {
-      syncPendingNotes();
-      loadApiNotes();
-    };
-    window.addEventListener("online", onOnline);
-    const interval = setInterval(() => {
-      if (navigator.onLine) {
-        syncPendingNotes();
-      }
-    }, 30000);
-    return () => {
-      window.removeEventListener("online", onOnline);
-      clearInterval(interval);
-    };
-  }, []);
+  const syncNotesCb = useCallback(() => syncPendingNotes(), []);
+  const loadNotesCb = useCallback(() => loadApiNotes(), []);
+  useOnlineSync({ syncFn: syncNotesCb, loadFn: loadNotesCb });
 
   useEffect(() => {
     if (activeNote?.server_id) {
