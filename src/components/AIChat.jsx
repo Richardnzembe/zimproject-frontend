@@ -1064,115 +1064,25 @@ export default function AIChat({ onNavigate }) {
         </div>
 
         {/* Navigation Footer */}
-        <div className="sidebar-footer" style={{ borderTop: "1px solid #3a3a3a" }}>
-          <nav style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <button
-              onClick={() => onNavigate && onNavigate("home")}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "12px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "8px",
-                color: "#e5e5e5",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
-              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-            >
+        <div className="sidebar-footer">
+          <nav className="sidebar-nav">
+            <button className="sidebar-nav-item" onClick={() => onNavigate && onNavigate("home")}>
               <HomeIcon />
               <span>Home</span>
             </button>
-            <button
-              onClick={() => onNavigate && onNavigate("notes")}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "12px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "8px",
-                color: "#e5e5e5",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
-              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-            >
+            <button className="sidebar-nav-item" onClick={() => onNavigate && onNavigate("notes")}>
               <NotesIcon />
               <span>Notes</span>
             </button>
-            <button
-              onClick={() => onNavigate && onNavigate("shares")}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "12px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "8px",
-                color: "#e5e5e5",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
-              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-            >
+            <button className="sidebar-nav-item" onClick={() => onNavigate && onNavigate("shares")}>
               <UsersIcon />
               <span>Shares</span>
             </button>
-            <button
-              onClick={() => onNavigate && onNavigate("account")}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "12px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "8px",
-                color: "#e5e5e5",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
-              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-            >
+            <button className="sidebar-nav-item" onClick={() => onNavigate && onNavigate("account")}>
               <UserIcon />
               <span>Account</span>
             </button>
-            <button
-              onClick={handleLogout}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                padding: "12px",
-                background: "transparent",
-                border: "none",
-                borderRadius: "8px",
-                color: "#e5e5e5",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-              onMouseOver={(e) => e.currentTarget.style.background = "#2a2a2c"}
-              onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
-            >
+            <button className="sidebar-nav-item sidebar-nav-logout" onClick={handleLogout}>
               <LogoutIcon />
               <span>Logout</span>
             </button>
@@ -1197,26 +1107,8 @@ export default function AIChat({ onNavigate }) {
         {headerVisible && (
           <header className="ai-header">
             <button
+              className="ai-header-toggle"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "40px",
-                height: "40px",
-                background: "var(--muted-button-bg)",
-                border: "1px solid var(--muted-button-border)",
-                borderRadius: "8px",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = "var(--muted-button-bg-hover)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = "var(--muted-button-bg)";
-              }}
             >
               {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
             </button>
@@ -1360,21 +1252,36 @@ export default function AIChat({ onNavigate }) {
         {/* Chat messages */}
         <div className="ai-messages">
           {isNewChat && (
-            <div className="mode-picker">
-              <div className="mode-picker-card">
-                <h3>Choose a mode to begin</h3>
-                <p>{getModeDescription()}</p>
-                <div className="mode-picker-actions">
-                  {CHAT_MODES.map((item) => (
-                    <button
-                      key={item.value}
-                      className={`mode-picker-btn ${mode === item.value ? "active" : ""}`}
-                      onClick={() => setMode(item.value)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
+            <div className="ai-welcome">
+              <div className="ai-welcome-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+              </div>
+              <h2 className="ai-welcome-title">How can I help you today?</h2>
+              <p className="ai-welcome-subtitle">Choose a mode to get started, or just type your question below.</p>
+              <div className="ai-welcome-modes">
+                {CHAT_MODES.map((item) => (
+                  <button
+                    key={item.value}
+                    className={`ai-welcome-mode-btn ${mode === item.value ? "active" : ""}`}
+                    onClick={() => setMode(item.value)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <p className="ai-welcome-mode-desc">{getModeDescription()}</p>
+              <div className="ai-welcome-suggestions">
+                <button className="ai-suggestion-chip" onClick={() => { setInput("Explain the concept of photosynthesis"); inputRef.current?.focus(); }}>
+                  Explain a concept
+                </button>
+                <button className="ai-suggestion-chip" onClick={() => { setInput("Help me write a study plan for my exams"); inputRef.current?.focus(); }}>
+                  Create a study plan
+                </button>
+                <button className="ai-suggestion-chip" onClick={() => { setInput("Summarize the key points of my notes"); inputRef.current?.focus(); }}>
+                  Summarize notes
+                </button>
               </div>
             </div>
           )}
@@ -1430,35 +1337,9 @@ export default function AIChat({ onNavigate }) {
                 <BotIcon />
               </div>
               <div className="ai-typing-dots">
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: "#10a37f",
-                    animation: "typing 1.4s infinite ease-in-out",
-                  }}
-                ></span>
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: "#10a37f",
-                    animation: "typing 1.4s infinite ease-in-out",
-                    animationDelay: "0.2s",
-                  }}
-                ></span>
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    background: "#10a37f",
-                    animation: "typing 1.4s infinite ease-in-out",
-                    animationDelay: "0.4s",
-                  }}
-                ></span>
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
               </div>
             </div>
           )}
@@ -1526,13 +1407,6 @@ export default function AIChat({ onNavigate }) {
         </div>
       </main>
 
-      {/* CSS Animation */}
-      <style>{`
-        @keyframes typing {
-          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-          30% { transform: translateY(-4px); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }
