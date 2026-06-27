@@ -1132,6 +1132,8 @@ textarea {
 .auth-google {
   display: flex;
   justify-content: center;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 /* ===== History Items ===== */
