@@ -2155,6 +2155,122 @@ textarea {
   border-color: var(--primary-color);
 }
 
+/* ===== AI Error & Retry ===== */
+.ai-message-error .ai-message-avatar {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.ai-message-error .ai-message-name {
+  color: #ef4444;
+}
+
+.ai-message-error .chat-message-text {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.ai-retry-button {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--primary-color);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.ai-retry-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+}
+
+.ai-retry-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== AI Sidebar Utility Classes ===== */
+.sidebar-empty {
+  padding: 20px;
+  text-align: center;
+  color: #8e8e8e;
+  font-size: 0.875rem;
+}
+
+.sidebar-rename-input {
+  flex: 1;
+  background: var(--muted-button-bg, #3a3a3a);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: #fff;
+  font-size: 0.875rem;
+}
+
+.sidebar-delete-confirm {
+  display: flex;
+  gap: 6px;
+}
+
+/* ===== AI Header Dropdown ===== */
+.ai-header-menu-wrap {
+  position: relative;
+}
+
+.ai-header-dropdown {
+  right: 0;
+  left: auto;
+  top: calc(100% + 8px);
+  min-width: 210px;
+  z-index: 120;
+}
+
+/* ===== AI Status & Collaborators ===== */
+.ai-status-bar {
+  padding: 6px 20px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.ai-collaborators {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.ai-collab-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-collab-remove {
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
+.ai-share-actions {
+  padding: 0 20px 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ===== AI Main Sidebar Shift ===== */
+.ai-main.sidebar-shifted {
+  margin-left: 260px;
+}
+
+.ai-composer.sidebar-shifted {
+  left: calc(24px + 260px);
+}
+
 /* ===== AI Welcome Screen ===== */
 .ai-welcome {
   max-width: 680px;
@@ -2297,7 +2413,7 @@ textarea {
   background: transparent;
   border-top: 0;
   position: fixed;
-  left: calc(24px + 260px);
+  left: 24px;
   right: 24px;
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   z-index: 80;
@@ -2506,6 +2622,22 @@ textarea {
 
   .ai-message.user .chat-message-text {
     max-width: 92%;
+  }
+
+  .ai-status-bar {
+    padding: 6px 12px;
+  }
+
+  .ai-share-actions {
+    padding: 0 12px 10px;
+  }
+
+  .ai-main.sidebar-shifted {
+    margin-left: 0;
+  }
+
+  .ai-composer.sidebar-shifted {
+    left: 12px;
   }
 
   .notes-list {
