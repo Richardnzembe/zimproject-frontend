@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { authFetch, clearTokens, getApiBaseUrl, getAuthToken } from "../lib/api";
+import { useClickOutside } from "../lib/hooks";
 
 export default function Navigation({ activeView, onViewChange }) {
   const token = getAuthToken();
@@ -36,26 +37,8 @@ export default function Navigation({ activeView, onViewChange }) {
     setAccountOpen(false);
   };
 
-  useEffect(() => {
-    const closeOnOutsideClick = (event) => {
-      if (!accountRef.current) return;
-      if (!accountRef.current.contains(event.target)) {
-        setAccountOpen(false);
-      }
-    };
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setAccountOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
+  const closeAccountMenu = useCallback(() => setAccountOpen(false), []);
+  useClickOutside(accountRef, closeAccountMenu);
 
   const handleAccountClick = () => {
     if (!token) {

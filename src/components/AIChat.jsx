@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
 import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
+import { PlusIcon, SendIcon, MenuIcon, ChevronLeftIcon, ChevronRightIcon, HomeIcon, NotesIcon, UserIcon, LogoutIcon, EditIcon, TrashIcon, LinkIcon, UsersIcon, CopyIcon, CheckIcon, BotIcon } from "../lib/icons";
+import { USER_OPENROUTER_MODEL_STORAGE, AI_HEADER_VISIBILITY_STORAGE, FREE_OPENROUTER_MODELS, CHAT_MODES, normalizeChatMode, getChatModeLabel } from "../lib/constants";
+import { flashStatus } from "../lib/utils";
+import { createShareLink as createShareLinkApi, inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi, fetchShareLinks as fetchShareLinksApi } from "../lib/sharing";
+import { useClickOutside, useAutoResize } from "../lib/hooks";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
 
@@ -241,6 +246,24 @@ export default function AIChat({ onNavigate }) {
     setShareStatus("");
   }
 
+  const formatInputData = (input_data) => {
+    if (!input_data) return "";
+    if (input_data.question) return input_data.question;
+    if (input_data.notes) return input_data.notes;
+    if (input_data.project_name) return input_data.project_name;
+    return JSON.stringify(input_data);
+  };
+
+  const fetchShareLinks = async (sessionId, sessionKey) => {
+    const info = await fetchShareLinksApi({
+      resourceType: "chat",
+      queryParams: { session_id: sessionKey },
+    });
+    if (info) {
+      setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
+    }
+  };
+
   function openSession(session) {
     setDraftSessionId(null);
     setCurrentSessionId(session.id);
@@ -405,50 +428,10 @@ export default function AIChat({ onNavigate }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const closeModeMenuOnOutsideClick = (event) => {
-      const clickedInsideMode =
-        modeMenuRef.current && modeMenuRef.current.contains(event.target);
-      if (!clickedInsideMode) {
-        setModeMenuOpen(false);
-      }
-    };
-
-    const closeModeMenuOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setModeMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", closeModeMenuOnOutsideClick);
-    document.addEventListener("keydown", closeModeMenuOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeModeMenuOnOutsideClick);
-      document.removeEventListener("keydown", closeModeMenuOnEscape);
-    };
-  }, []);
-
-  useEffect(() => {
-    const closeOnOutsideClick = (event) => {
-      if (!headerMenuRef.current) return;
-      if (!headerMenuRef.current.contains(event.target)) {
-        setHeaderMenuOpen(false);
-      }
-    };
-
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") {
-        setHeaderMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
+  const closeModeMenu = useCallback(() => setModeMenuOpen(false), []);
+  const closeHeaderMenu = useCallback(() => setHeaderMenuOpen(false), []);
+  useClickOutside(modeMenuRef, closeModeMenu);
+  useClickOutside(headerMenuRef, closeHeaderMenu);
 
   // Auth change listener
   useEffect(() => {
@@ -503,6 +486,7 @@ export default function AIChat({ onNavigate }) {
   }, [messages]);
 
   // Auto-resize input as content grows
+  useAutoResize(inputRef, input);
   useEffect(() => {
     if (!inputRef.current) return;
     inputRef.current.style.height = "auto";
@@ -533,120 +517,72 @@ export default function AIChat({ onNavigate }) {
     if (!sessionId) return;
     const session = chatSessions.find((s) => s.id === sessionId);
     const sessionKey = session?.input_data?.session_id || sessionId;
-    try {
-      const historyIds =
-        session?.items
-          ?.map((item) => item?.server_id || (typeof item?.id === "number" ? item.id : null))
-          .filter(Boolean) || [];
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/create/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resource_type: "chat",
-          session_id: sessionKey,
-          history_ids: historyIds,
-          permission,
-        }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to create share link.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [sessionId]: [
-          ...(prev[sessionId] || []).filter((s) => s.permission !== permission),
-          data,
-        ],
-      }));
-      const url = `${window.location.origin}?share=${data.token}`;
-      await navigator.clipboard.writeText(url);
-      setShareStatus("Share link copied.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to create share link.");
+    const historyIds =
+      session?.items
+        ?.map((item) => item?.server_id || (typeof item?.id === "number" ? item.id : null))
+        .filter(Boolean) || [];
+    const result = await createShareLinkApi({
+      resourceType: "chat",
+      permission,
+      body: { session_id: sessionKey, history_ids: historyIds },
+    });
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [sessionId]: [
+        ...(prev[sessionId] || []).filter((s) => s.permission !== permission),
+        result.data,
+      ],
+    }));
+    await navigator.clipboard.writeText(result.url);
+    flashStatus(setShareStatus, "Share link copied.");
   };
 
   const inviteUserToShare = async () => {
     const share = currentShare;
     if (!share?.token) return;
-    const username = window.prompt("Enter username to invite:");
-    if (!username) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${share.token}/invite/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to send invite.");
-        return;
-      }
-      setShareStatus("Invite sent.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to send invite.");
+    const result = await inviteUserApi(share.token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    if (result.success) flashStatus(setShareStatus, "Invite sent.");
   };
 
   const removeMemberFromShare = async (shareToken, userId) => {
     if (!shareToken || !userId || !currentSessionId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/members/${userId}/`, {
-        method: "DELETE",
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to remove member.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [currentSessionId]: (prev[currentSessionId] || []).map((share) =>
-          share.token === shareToken
-            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-            : share
-        ),
-      }));
-      setShareStatus("Member removed.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to remove member.");
+    const result = await removeMemberApi(shareToken, userId);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [currentSessionId]: (prev[currentSessionId] || []).map((share) =>
+        share.token === shareToken
+          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+          : share
+      ),
+    }));
+    flashStatus(setShareStatus, "Member removed.");
   };
 
   const revokeShareLink = async () => {
     const share = currentShare;
     if (!share?.token || !currentSessionId) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${share.token}/revoke/`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setShareStatus(data?.detail || "Unable to revoke share link.");
-        return;
-      }
-      setShareInfoBySession((prev) => ({
-        ...prev,
-        [currentSessionId]: (prev[currentSessionId] || []).filter((item) => item.token !== share.token),
-      }));
-      setShareStatus("Share link revoked.");
-      setTimeout(() => setShareStatus(""), 2500);
-    } catch {
-      setShareStatus("Unable to revoke share link.");
+    const result = await revokeShareApi(share.token);
+    if (result.error) {
+      setShareStatus(result.error);
+      return;
     }
-  };
-
-  const formatInputData = (input_data) => {
-    if (!input_data) return "";
-    if (input_data.question) return input_data.question;
-    if (input_data.notes) return input_data.notes;
-    if (input_data.project_name) return input_data.project_name;
-    return JSON.stringify(input_data);
+    setShareInfoBySession((prev) => ({
+      ...prev,
+      [currentSessionId]: (prev[currentSessionId] || []).filter((item) => item.token !== share.token),
+    }));
+    flashStatus(setShareStatus, "Share link revoked.");
   };
 
   const copyToClipboard = async (text, id) => {

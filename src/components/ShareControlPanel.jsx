@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken } from "../lib/api";
+import { safeJson, flashStatus, buildShareUrl } from "../lib/utils";
+import { inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi } from "../lib/sharing";
 
 const RESOURCE_LABELS = {
   chat: "AI Chat",
@@ -12,14 +14,6 @@ export default function ShareControlPanel() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
-
-  const safeJson = async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
-  };
 
   const loadShares = async () => {
     const token = getAuthToken();
@@ -51,76 +45,49 @@ export default function ShareControlPanel() {
 
   const copyShareUrl = async (shareToken) => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}?share=${shareToken}`);
-      setStatus("Share link copied.");
-      setTimeout(() => setStatus(""), 2500);
+      await navigator.clipboard.writeText(buildShareUrl(shareToken));
+      flashStatus(setStatus, "Share link copied.");
     } catch {
       setStatus("Unable to copy share link.");
     }
   };
 
   const inviteUser = async (shareToken) => {
-    const username = window.prompt("Enter username to invite:");
-    if (!username || !shareToken) return;
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/invite/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setStatus(data?.detail || "Unable to send invite.");
-        return;
-      }
-      setStatus("Invite sent.");
-      setTimeout(() => setStatus(""), 2500);
+    const result = await inviteUserApi(shareToken);
+    if (result.error) {
+      setStatus(result.error);
+      return;
+    }
+    if (result.success) {
+      flashStatus(setStatus, "Invite sent.");
       await loadShares();
-    } catch {
-      setStatus("Unable to send invite.");
     }
   };
 
   const removeMember = async (shareToken, userId) => {
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/members/${userId}/`, {
-        method: "DELETE",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setStatus(data?.detail || "Unable to remove member.");
-        return;
-      }
-      setShares((prev) =>
-        prev.map((share) =>
-          share.token === shareToken
-            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-            : share
-        )
-      );
-      setStatus("Member removed.");
-      setTimeout(() => setStatus(""), 2500);
-    } catch {
-      setStatus("Unable to remove member.");
+    const result = await removeMemberApi(shareToken, userId);
+    if (result.error) {
+      setStatus(result.error);
+      return;
     }
+    setShares((prev) =>
+      prev.map((share) =>
+        share.token === shareToken
+          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+          : share
+      )
+    );
+    flashStatus(setStatus, "Member removed.");
   };
 
   const revokeShare = async (shareToken) => {
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${shareToken}/revoke/`, {
-        method: "POST",
-      });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setStatus(data?.detail || "Unable to revoke share link.");
-        return;
-      }
-      setShares((prev) => prev.filter((share) => share.token !== shareToken));
-      setStatus("Share link revoked.");
-      setTimeout(() => setStatus(""), 2500);
-    } catch {
-      setStatus("Unable to revoke share link.");
+    const result = await revokeShareApi(shareToken);
+    if (result.error) {
+      setStatus(result.error);
+      return;
     }
+    setShares((prev) => prev.filter((share) => share.token !== shareToken));
+    flashStatus(setStatus, "Share link revoked.");
   };
 
   const visibleShares = useMemo(

@@ -1,18 +1,7 @@
 import React, { useState } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, authFetch } from "../lib/api";
 import { upsertHistoryItems } from "../db";
-
-const MODE_OPTIONS = [
-  { value: "general", label: "General" },
-  { value: "research", label: "Deep Research" },
-  { value: "writing", label: "Writing" },
-];
-
-const MODE_ENDPOINTS = {
-  general: "/api/ai/general/",
-  research: "/api/ai/research/",
-  writing: "/api/ai/writing/",
-};
+import { CHAT_MODES, MODE_ENDPOINTS } from "../lib/constants";
 
 const AIStudy = () => {
   const [question, setQuestion] = useState("");
@@ -79,7 +68,7 @@ const AIStudy = () => {
         <label>
           Filter:
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            {MODE_OPTIONS.map((option) => (
+            {CHAT_MODES.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
