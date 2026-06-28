@@ -35,12 +35,12 @@ const QuestionIcon = () => (
 
 const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
 const FREE_OPENROUTER_MODELS = [
-  { value: "auto", label: "Auto (OpenRouter default)" },
-  { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
+  { value: "auto", label: "Auto (Llama 3.3 70B Free)" },
   { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B Instruct (Free)" },
-  { value: "qwen/qwen-2.5-72b-instruct:free", label: "Qwen 2.5 72B Instruct (Free)" },
-  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
-  { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
+  { value: "google/gemma-4-31b-it:free", label: "Gemma 4 31B (Free)" },
+  { value: "qwen/qwen3-coder:free", label: "Qwen3 Coder 480B (Free)" },
+  { value: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B (Free)" },
+  { value: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B (Free)" },
 ];
 
 const hasHtmlTags = (value) => /<[^>]+>/.test(value || "");
