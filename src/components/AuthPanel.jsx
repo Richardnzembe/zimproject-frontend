@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuthUserId } from "../lib/api";
 
 const PIN_STORAGE_KEY = "notex_device_pin_hash";
+const GSI_SCRIPT_URL = "https://accounts.google.com/gsi/client";
 
 const hashPin = async (value) => {
   const data = new TextEncoder().encode(value);
@@ -11,6 +12,54 @@ const hashPin = async (value) => {
     .join("");
 };
 
+const safeJson = async (res) => {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (data, fallback) => {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (data.detail) return data.detail;
+  if (data.error) return data.error;
+  if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
+    return data.non_field_errors[0];
+  }
+  const keys = Object.keys(data);
+  if (keys.length) {
+    const firstKey = keys[0];
+    const value = data[firstKey];
+    if (Array.isArray(value) && value.length) return `${firstKey}: ${value[0]}`;
+    if (typeof value === "string") return `${firstKey}: ${value}`;
+  }
+  return fallback;
+};
+
+let gsiLoadPromise = null;
+const loadGsiScript = () => {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (gsiLoadPromise) return gsiLoadPromise;
+  gsiLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${GSI_SCRIPT_URL}"]`);
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      existing.addEventListener("error", reject, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = GSI_SCRIPT_URL;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return gsiLoadPromise;
+};
+
 const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
@@ -18,6 +67,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState("");
+  const [statusType, setStatusType] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetStep, setResetStep] = useState("");
   const [resetEmail, setResetEmail] = useState("");
@@ -43,47 +93,32 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const envGoogleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
   const [googleClientId, setGoogleClientId] = useState(envGoogleClientId);
   const googleButtonRef = useRef(null);
-  const googleInitializedRef = useRef(false);
+  const googleInitializedForRef = useRef("");
 
   const token = getAuthToken();
   const userId = getAuthUserId();
   const hasPin = Boolean(localStorage.getItem(PIN_STORAGE_KEY));
 
-  const safeJson = useCallback(async (res) => {
-    try {
-      return await res.json();
-    } catch {
-      return null;
-    }
+  const setErrorStatus = useCallback((msg) => {
+    setStatus(msg);
+    setStatusType("error");
   }, []);
 
-  const extractErrorMessage = useCallback((data, fallback) => {
-    if (!data) return fallback;
-    if (typeof data === "string") return data;
-    if (data.detail) return data.detail;
-    if (data.error) return data.error;
-    if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
-      return data.non_field_errors[0];
-    }
-    const keys = Object.keys(data);
-    if (keys.length) {
-      const firstKey = keys[0];
-      const value = data[firstKey];
-      if (Array.isArray(value) && value.length) return `${firstKey}: ${value[0]}`;
-      if (typeof value === "string") return `${firstKey}: ${value}`;
-    }
-    return fallback;
+  const setSuccessStatus = useCallback((msg) => {
+    setStatus(msg);
+    setStatusType("success");
   }, []);
 
   const handleGoogleCredential = useCallback(async (credential) => {
     const tokenValue = (credential || "").trim();
     if (!tokenValue) {
-      setStatus("Google login failed.");
+      setErrorStatus("Google login failed.");
       return;
     }
 
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/google/`, {
@@ -95,52 +130,48 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Google login failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Google login failed (${res.status})`));
         setLoading(false);
         return;
       }
 
       await setTokens(data);
       window.dispatchEvent(new Event("auth-changed"));
-      setStatus("Logged in with Google!");
+      setSuccessStatus("Logged in with Google!");
       setMode("login");
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
       console.error(err);
-      setStatus("Google login error");
+      setErrorStatus("Google login error");
     }
 
     setLoading(false);
-  }, [extractErrorMessage, safeJson]);
+  }, [setErrorStatus, setSuccessStatus]);
 
   useEffect(() => {
-    if (googleClientId) return;
-    if (!envGoogleClientId) {
-      // If VITE_GOOGLE_CLIENT_ID was not baked into the build, try runtime config from the API.
-      let isActive = true;
-      const loadGoogleConfig = async () => {
-        try {
-          const res = await fetch(`${getApiBaseUrl()}/api/auth/google/config/`, {
-            method: "GET",
-            credentials: "include",
-          });
-          const data = await safeJson(res);
-          const clientId = (data?.clientId || "").trim();
-          if (res.ok && clientId && isActive) {
-            setGoogleClientId(clientId);
-          }
-        } catch {
-          // Best effort: keep Google disabled if config cannot be loaded.
+    if (envGoogleClientId || googleClientId) return;
+    let isActive = true;
+    const loadGoogleConfig = async () => {
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/api/auth/google/config/`, {
+          method: "GET",
+          credentials: "include",
+        });
+        const data = await safeJson(res);
+        const clientId = (data?.clientId || data?.client_id || "").trim();
+        if (res.ok && clientId && isActive) {
+          setGoogleClientId(clientId);
         }
-      };
-      loadGoogleConfig();
-      return () => {
-        isActive = false;
-      };
-    }
-    return undefined;
-  }, [envGoogleClientId, googleClientId, safeJson]);
+      } catch {
+        // Best effort: keep Google disabled if config cannot be loaded.
+      }
+    };
+    loadGoogleConfig();
+    return () => {
+      isActive = false;
+    };
+  }, [envGoogleClientId, googleClientId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -215,14 +246,13 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     if (resetStep) return;
 
     let cancelled = false;
-    let intervalId = null;
 
-    const tryRender = () => {
+    const renderButton = () => {
       const container = googleButtonRef.current;
       const google = window.google;
-      if (!container || !google?.accounts?.id) return false;
+      if (!container || !google?.accounts?.id) return;
 
-      if (!googleInitializedRef.current) {
+      if (googleInitializedForRef.current !== googleClientId) {
         google.accounts.id.initialize({
           client_id: googleClientId,
           callback: (response) => {
@@ -230,7 +260,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
           },
           cancel_on_tap_outside: true,
         });
-        googleInitializedRef.current = true;
+        googleInitializedForRef.current = googleClientId;
       }
 
       container.innerHTML = "";
@@ -240,25 +270,20 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         text: mode === "register" ? "signup_with" : "continue_with",
         shape: "rectangular",
         logo_alignment: "left",
-        width: 360,
+        width: Math.min(360, window.innerWidth - 64),
       });
-      return true;
     };
 
-    if (tryRender()) {
-      return undefined;
-    }
-
-    intervalId = window.setInterval(() => {
-      if (cancelled) return;
-      if (tryRender()) {
-        window.clearInterval(intervalId);
-      }
-    }, 250);
+    loadGsiScript()
+      .then(() => {
+        if (!cancelled) renderButton();
+      })
+      .catch(() => {
+        // Google SDK failed to load; keep button hidden.
+      });
 
     return () => {
       cancelled = true;
-      if (intervalId) window.clearInterval(intervalId);
     };
   }, [googleClientId, handleGoogleCredential, mode, resetStep, token]);
 
@@ -266,11 +291,12 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     const safeUsername = username.trim();
     const safePassword = password;
     if (!safeUsername || !safePassword) {
-      setStatus("Username and password are required.");
+      setErrorStatus("Username and password are required.");
       return;
     }
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/login/`, {
@@ -282,17 +308,17 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Login failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Login failed (${res.status})`));
         setLoading(false);
         return;
       }
 
       await setTokens(data);
       window.dispatchEvent(new Event("auth-changed"));
-      setStatus("Logged in successfully!");
+      setSuccessStatus("Logged in successfully!");
     } catch (err) {
       console.error(err);
-      setStatus("Login error");
+      setErrorStatus("Login error");
     }
 
     setLoading(false);
@@ -302,20 +328,21 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     const safeUsername = username.trim();
     const safeEmail = email.trim();
     if (password !== confirmPassword) {
-      setStatus("Passwords do not match");
+      setErrorStatus("Passwords do not match");
       return;
     }
     if (!safeEmail) {
-      setStatus("Email is required for password recovery.");
+      setErrorStatus("Email is required for password recovery.");
       return;
     }
     if (!safeUsername) {
-      setStatus("Username is required.");
+      setErrorStatus("Username is required.");
       return;
     }
 
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/register/`, {
@@ -331,12 +358,12 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Registration failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Registration failed (${res.status})`));
         setLoading(false);
         return;
       }
 
-      setStatus("Account created. You can now log in.");
+      setSuccessStatus("Account created. You can now log in.");
       setMode("login");
       setUsername(username);
       setEmail("");
@@ -344,7 +371,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       setConfirmPassword("");
     } catch (err) {
       console.error(err);
-      setStatus("Registration error");
+      setErrorStatus("Registration error");
     }
 
     setLoading(false);
@@ -353,7 +380,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const handleLogout = async () => {
     await clearTokens();
     window.dispatchEvent(new Event("auth-changed"));
-    setStatus("Logged out");
+    setSuccessStatus("Logged out");
     setAccountOptionsOpen(false);
     setDisplayUsername("");
     setProfileId(null);
@@ -362,6 +389,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const handlePasswordResetRequest = async () => {
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/`, {
@@ -372,15 +400,15 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Reset request failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Reset request failed (${res.status})`));
       } else {
-        setStatus(data?.detail || "If an account exists, a reset link has been sent.");
+        setSuccessStatus(data?.detail || "If an account exists, a reset link has been sent.");
       }
     } catch (err) {
       console.error(err);
       const message =
         err instanceof Error && err.message ? err.message : "Network or CORS error";
-      setStatus(`Reset request error: ${message}`);
+      setErrorStatus(`Reset request error: ${message}`);
     }
 
     setLoading(false);
@@ -389,6 +417,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const handlePasswordResetConfirm = async () => {
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/confirm/`, {
@@ -403,16 +432,16 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Password reset failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Password reset failed (${res.status})`));
       } else {
-        setStatus(data?.detail || "Password reset successfully.");
+        setSuccessStatus(data?.detail || "Password reset successfully.");
         setResetStep("");
         setMode("login");
         setResetNewPassword("");
       }
     } catch (err) {
       console.error(err);
-      setStatus("Password reset error");
+      setErrorStatus("Password reset error");
     }
 
     setLoading(false);
@@ -420,21 +449,22 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
   const handleAuthenticatedPasswordReset = async () => {
     if (!accountPassword) {
-      setStatus("New password is required.");
+      setErrorStatus("New password is required.");
       return;
     }
     if (accountPassword !== accountPasswordConfirm) {
-      setStatus("Passwords do not match.");
+      setErrorStatus("Passwords do not match.");
       return;
     }
     const resolvedUserId = profileId || userId;
     if (!resolvedUserId) {
-      setStatus("Missing user information.");
+      setErrorStatus("Missing user information.");
       return;
     }
 
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${resolvedUserId}/set_password/`, {
@@ -445,16 +475,16 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Password reset failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Password reset failed (${res.status})`));
       } else {
-        setStatus(data?.detail || "Password has been reset successfully.");
+        setSuccessStatus(data?.detail || "Password has been reset successfully.");
         setAccountPassword("");
         setAccountPasswordConfirm("");
         setAccountOptionsOpen(false);
       }
     } catch (err) {
       console.error(err);
-      setStatus("Password reset error");
+      setErrorStatus("Password reset error");
     }
 
     setLoading(false);
@@ -463,19 +493,20 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const handleDeleteAccount = async () => {
     const resolvedUserId = profileId || userId;
     if (!resolvedUserId) {
-      setStatus("Missing user information.");
+      setErrorStatus("Missing user information.");
       return;
     }
     const confirmed = window.confirm(
       "This will permanently delete your account and data. Do you want to continue?"
     );
     if (!confirmed) {
-      setStatus("Account deletion canceled.");
+      setSuccessStatus("Account deletion canceled.");
       return;
     }
 
     setLoading(true);
     setStatus("");
+    setStatusType("");
 
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/auth/users/${resolvedUserId}/delete/`, {
@@ -483,17 +514,17 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
       });
       const data = await safeJson(res);
       if (!res.ok) {
-        setStatus(extractErrorMessage(data, `Delete failed (${res.status})`));
+        setErrorStatus(extractErrorMessage(data, `Delete failed (${res.status})`));
       } else {
         await clearTokens();
         window.dispatchEvent(new Event("auth-changed"));
-        setStatus(data?.detail || "Account has been deleted successfully.");
+        setSuccessStatus(data?.detail || "Account has been deleted successfully.");
         setAccountOptionsOpen(false);
         setDisplayUsername("");
       }
     } catch (err) {
       console.error(err);
-      setStatus("Delete account error");
+      setErrorStatus("Delete account error");
     }
 
     setLoading(false);
@@ -617,6 +648,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
               onClick={() => {
                 setAccountOptionsOpen((prev) => !prev);
                 setStatus("");
+              setStatusType("");
               }}
               className="button-secondary"
             >
@@ -801,6 +833,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   onClick={() => {
                     setResetStep("");
                     setStatus("");
+                    setStatusType("");
                   }}
                   disabled={loading}
                 >
@@ -838,6 +871,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   onClick={() => {
                     setResetStep("");
                     setStatus("");
+                    setStatusType("");
                   }}
                   disabled={loading}
                 >
@@ -889,6 +923,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                       onClick={() => {
                         setMode("register");
                         setStatus("");
+                        setStatusType("");
                       }}
                       disabled={loading}
                     >
@@ -899,6 +934,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                       onClick={() => {
                         setResetStep("request");
                         setStatus("");
+                        setStatusType("");
                       }}
                       disabled={loading}
                       style={{ fontSize: "0.875rem" }}
@@ -916,6 +952,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                       onClick={() => {
                         setMode("login");
                         setStatus("");
+                        setStatusType("");
                       }}
                       disabled={loading}
                     >
@@ -939,12 +976,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       {(status || pinStatus) && (
         <p
-          className={`status-message ${
-            ((status || pinStatus).includes("Error") ||
-              (status || pinStatus).includes("error") ||
-              (status || pinStatus).includes("failed") ||
-              (status || pinStatus).includes("Failed")) ? "error" : "success"
-          }`}
+          className={`status-message ${statusType === "error" ? "error" : "success"}`}
           style={{ marginTop: "16px" }}
         >
           {status || pinStatus}

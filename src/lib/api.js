@@ -1,7 +1,7 @@
 import { getCookie } from "./cookies";
 
 const DEV_API_BASE_URL = "http://localhost:8000";
-const PROD_API_BASE_URL = "https://ree-backend.onrender.com";
+const PROD_API_BASE_URL = import.meta.env.VITE_API_URL || "";
 const USER_OPENROUTER_MODEL_STORAGE = "notex_openrouter_model";
 const USER_ID_STORAGE_KEY = "notex_user_id";
 const AUTH_SESSION_STORAGE_KEY = "notex_auth_session";

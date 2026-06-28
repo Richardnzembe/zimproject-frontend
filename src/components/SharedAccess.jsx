@@ -147,9 +147,12 @@ export default function SharedAccess({ token, onNavigate }) {
       if (res.ok) {
         setInviteId(null);
         await fetchShare();
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.detail || `Failed to ${action} invite.`);
       }
     } catch {
-      // ignore
+      setError(`Failed to ${action} invite. Please try again.`);
     }
   };
 
@@ -185,9 +188,12 @@ export default function SharedAccess({ token, onNavigate }) {
       });
       if (res.ok) {
         setMembers((prev) => prev.filter((m) => m.user?.id !== memberId));
+      } else {
+        const data = await res.json().catch(() => null);
+        setError(data?.detail || "Unable to remove member.");
       }
     } catch {
-      // ignore
+      setError("Unable to remove member. Please try again.");
     }
   };
 
