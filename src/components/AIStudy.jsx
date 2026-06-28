@@ -33,36 +33,41 @@ const AIStudy = () => {
     const url = `${getApiBaseUrl()}${MODE_ENDPOINTS[mode] || MODE_ENDPOINTS.general}`;
     const body = { question };
 
-    const res = await authFetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setStatus(data?.detail || "AI request failed");
-      return;
-    }
-
-    const responseText = data.answer || data.result || JSON.stringify(data, null, 2);
-    setAnswer(responseText);
-
-    const userId = getAuthUserId();
-    if (userId) {
-      await upsertHistoryItems([
-        {
-          local_id: crypto.randomUUID(),
-          user_id: userId,
-          mode,
-          input_data: body,
-          response_text: responseText,
-          created_at: new Date().toISOString(),
-          local_only: true,
+    try {
+      const res = await authFetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      ]);
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setStatus(data?.detail || `AI request failed (${res.status})`);
+        return;
+      }
+
+      const responseText = data?.answer || data?.result || JSON.stringify(data, null, 2);
+      setAnswer(responseText);
+
+      const userId = getAuthUserId();
+      if (userId) {
+        await upsertHistoryItems([
+          {
+            local_id: crypto.randomUUID(),
+            user_id: userId,
+            mode,
+            input_data: body,
+            response_text: responseText,
+            created_at: new Date().toISOString(),
+            local_only: true,
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error("AI request failed:", err);
+      setStatus("Failed to contact AI. Please check your connection and try again.");
     }
   };
 

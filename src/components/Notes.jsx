@@ -208,10 +208,13 @@ const Notes = ({ onOpenAI }) => {
         { method: "GET" }
       );
       const data = await res.json().catch(() => []);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn("Failed to fetch share links for note:", noteId, res.status);
+        return;
+      }
       setShareInfo(Array.isArray(data) ? data : []);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn("Failed to fetch share links:", err);
     }
   };
 
@@ -480,7 +483,8 @@ const Notes = ({ onOpenAI }) => {
           ]);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Sync failed for note:", note.local_id, err);
+        setStatus("Some notes failed to sync. Will retry shortly.");
       }
     }
 
@@ -746,20 +750,31 @@ const Notes = ({ onOpenAI }) => {
     setAIResult("");
     setAINoteId(note.local_id);
 
-    try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ note_content: note.content, action }),
-      });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
-      const data = await res.json();
+    try {
+      let res;
+      try {
+        res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ note_content: note.content, action }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
         const errorText = data?.error || data?.detail || `AI request failed (${res.status})`;
         const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
         setAIResult(`${requestMessage}${errorText}`);
+      } else if (!data) {
+        setAIResult("Received an empty response from AI.");
       } else {
         const responseText = data.updated_note || "No response from AI.";
         const requestMessage = data?.request_message ? `${data.request_message}\n\n` : "";
@@ -781,7 +796,11 @@ const Notes = ({ onOpenAI }) => {
       }
     } catch (err) {
       console.error(err);
-      setAIResult("Error contacting AI");
+      if (err?.name === "AbortError") {
+        setAIResult("Request timed out. The server may be waking up \u2014 please try again.");
+      } else {
+        setAIResult("Could not reach the AI service. Check your connection and try again.");
+      }
     }
 
     setAILoading(false);
@@ -809,7 +828,7 @@ const Notes = ({ onOpenAI }) => {
         <h2 className="card-title">
           {editingId ? "Edit Note" : "My Notes"}
         </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="card-header-actions">
           {syncing && (
             <div className="sync-indicator syncing">
               <span className="sync-dot"></span>
@@ -817,20 +836,8 @@ const Notes = ({ onOpenAI }) => {
             </div>
           )}
           <button
+            className="notes-ai-launch-btn"
             onClick={() => onOpenAI && onOpenAI()}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              background: "var(--primary-color)",
-              color: "white",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.8125rem",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
               <rect x="2" y="2" width="20" height="20" rx="2"></rect>
@@ -865,7 +872,7 @@ const Notes = ({ onOpenAI }) => {
       </div>
 
       <div className="notes-form">
-        <h3 style={{ marginBottom: "16px" }}>
+        <h3 className="notes-form-heading">
           {editingId ? "Update Note" : "Create New Note"}
         </h3>
         
@@ -884,7 +891,7 @@ const Notes = ({ onOpenAI }) => {
           />
         </div>
 
-        <div className="form-row" style={{ marginTop: "12px" }}>
+        <div className="form-row form-row-mt">
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -903,7 +910,7 @@ const Notes = ({ onOpenAI }) => {
           />
         </div>
 
-        <div className="notes-editor-toolbar" style={{ marginTop: "12px" }}>
+        <div className="notes-editor-toolbar form-row-mt">
           <div className="notes-editor-group">
             <button
               type="button"
@@ -1008,7 +1015,7 @@ const Notes = ({ onOpenAI }) => {
           suppressContentEditableWarning
         />
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", marginTop: "16px" }}>
+        <div className="notes-form-actions">
           <button onClick={saveNote}>
             {editingId ? "Update Note" : "Save Note"}
           </button>
@@ -1059,15 +1066,7 @@ const Notes = ({ onOpenAI }) => {
               >
                 <div className="note-card-header">
                   <h3 className="note-card-title">{note.title}</h3>
-                  <span style={{ 
-                    fontSize: "0.75rem", 
-                    padding: "4px 8px", 
-                    background: "var(--primary-light)", 
-                    color: "var(--primary-color)", 
-                    borderRadius: "4px" 
-                  }}>
-                    {note.category}
-                  </span>
+                  <span className="note-card-badge">{note.category}</span>
                 </div>
                 
                 <div className="note-card-meta">
