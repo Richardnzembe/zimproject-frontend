@@ -813,7 +813,7 @@ const Notes = ({ onOpenAI }) => {
         <h2 className="card-title">
           {editingId ? "Edit Note" : "My Notes"}
         </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="card-header-actions">
           {syncing && (
             <div className="sync-indicator syncing">
               <span className="sync-dot"></span>
@@ -821,20 +821,8 @@ const Notes = ({ onOpenAI }) => {
             </div>
           )}
           <button
+            className="notes-ai-launch-btn"
             onClick={() => onOpenAI && onOpenAI()}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 14px",
-              background: "var(--primary-color)",
-              color: "white",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.8125rem",
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
               <rect x="2" y="2" width="20" height="20" rx="2"></rect>
@@ -869,7 +857,7 @@ const Notes = ({ onOpenAI }) => {
       </div>
 
       <div className="notes-form">
-        <h3 style={{ marginBottom: "16px" }}>
+        <h3 className="notes-form-heading">
           {editingId ? "Update Note" : "Create New Note"}
         </h3>
         
@@ -888,7 +876,7 @@ const Notes = ({ onOpenAI }) => {
           />
         </div>
 
-        <div className="form-row" style={{ marginTop: "12px" }}>
+        <div className="form-row form-row-mt">
           <select
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -907,7 +895,7 @@ const Notes = ({ onOpenAI }) => {
           />
         </div>
 
-        <div className="notes-editor-toolbar" style={{ marginTop: "12px" }}>
+        <div className="notes-editor-toolbar form-row-mt">
           <div className="notes-editor-group">
             <button
               type="button"
@@ -1012,7 +1000,7 @@ const Notes = ({ onOpenAI }) => {
           suppressContentEditableWarning
         />
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", marginTop: "16px" }}>
+        <div className="notes-form-actions">
           <button onClick={saveNote}>
             {editingId ? "Update Note" : "Save Note"}
           </button>
@@ -1063,15 +1051,7 @@ const Notes = ({ onOpenAI }) => {
               >
                 <div className="note-card-header">
                   <h3 className="note-card-title">{note.title}</h3>
-                  <span style={{ 
-                    fontSize: "0.75rem", 
-                    padding: "4px 8px", 
-                    background: "var(--primary-light)", 
-                    color: "var(--primary-color)", 
-                    borderRadius: "4px" 
-                  }}>
-                    {note.category}
-                  </span>
+                  <span className="note-card-badge">{note.category}</span>
                 </div>
                 
                 <div className="note-card-meta">
