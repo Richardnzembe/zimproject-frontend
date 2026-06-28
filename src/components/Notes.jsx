@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import ImageToText from "./ImageToText";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
 import {
@@ -54,7 +55,8 @@ const stripHtml = (value) => (value ? value.replace(/<[^>]*>/g, "") : "");
 
 const renderNoteContent = (value) => {
   if (!value) return "";
-  return hasHtmlTags(value) ? value : value.replace(/\n/g, "<br />");
+  const raw = hasHtmlTags(value) ? value : value.replace(/\n/g, "<br />");
+  return DOMPurify.sanitize(raw);
 };
 
 const Notes = ({ onOpenAI }) => {
