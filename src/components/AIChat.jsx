@@ -114,6 +114,21 @@ const CheckIcon = () => (
   </svg>
 );
 
+const RetryIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+    <polyline points="23 4 23 10 17 10"></polyline>
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+  </svg>
+);
+
+const AlertIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+);
+
 const BotIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
     <rect x="2" y="2" width="20" height="20" rx="2"></rect>
@@ -182,6 +197,8 @@ export default function AIChat({ onNavigate }) {
   const [shareStatus, setShareStatus] = useState("");
   const [modelStatus, setModelStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
+  const [lastFailedInput, setLastFailedInput] = useState(null);
+  const [lastFailedMode, setLastFailedMode] = useState(null);
   const [selectedModel, setSelectedModel] = useState(() => {
     const stored = (getUserOpenRouterModel() || "").trim();
     return stored || "auto";
@@ -642,42 +659,9 @@ export default function AIChat({ onNavigate }) {
     }
   };
 
-  const getEndpointAndBody = () => {
-    const buildHistory = () => {
-      const history = [];
-      messages.forEach((msg) => {
-        if (msg.id === "welcome") return;
-        if (msg.role !== "user" && msg.role !== "assistant") return;
-        history.push({ role: msg.role, content: msg.content });
-      });
-      return history.slice(-10);
-    };
-
-    const history = buildHistory();
-    if (mode === "general") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/general/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    } else if (mode === "research") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/research/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    } else if (mode === "writing") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/writing/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    }
-    return {
-      url: `${getApiBaseUrl()}/api/ai/general/`,
-      body: { question: input, history, session_id: currentSessionId },
-    };
-  };
-
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (retryText = null) => {
+    const messageText = retryText || input;
+    if (!messageText.trim() || loading) return;
 
     const token = getAuthToken();
     if (!token) {
@@ -693,19 +677,40 @@ export default function AIChat({ onNavigate }) {
       return;
     }
 
-    const userMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-      timestamp: new Date().toISOString(),
-      senderName: "You",
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    const messageToSend = input;
-    setInput("");
+    if (!retryText) {
+      const userMessage = {
+        id: Date.now().toString(),
+        role: "user",
+        content: messageText,
+        timestamp: new Date().toISOString(),
+        senderName: "You",
+      };
+      setMessages((prev) => [...prev, userMessage]);
+    }
+    const messageToSend = messageText;
+    if (!retryText) setInput("");
     setLoading(true);
     setModelStatus("");
+    setLastFailedInput(null);
+    setLastFailedMode(null);
+
+    const addErrorMessage = (content, retryable = false) => {
+      if (retryable) {
+        setLastFailedInput(messageToSend);
+        setLastFailedMode(mode);
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString() + "-error",
+          role: "assistant",
+          content,
+          timestamp: new Date().toISOString(),
+          isError: true,
+          retryable,
+        },
+      ]);
+    };
 
     try {
       const session = chatSessions.find((s) => s.id === currentSessionId);
@@ -742,7 +747,28 @@ export default function AIChat({ onNavigate }) {
         }
       }
 
-      const { url, body } = getEndpointAndBody();
+      const getEndpoint = () => {
+        const buildHistory = () => {
+          const history = [];
+          messages.forEach((msg) => {
+            if (msg.id === "welcome" || msg.isError) return;
+            if (msg.role !== "user" && msg.role !== "assistant") return;
+            history.push({ role: msg.role, content: msg.content });
+          });
+          return history.slice(-10);
+        };
+        const history = buildHistory();
+        const base = getApiBaseUrl();
+        const currentMode = retryText ? (lastFailedMode || mode) : mode;
+        if (currentMode === "research") {
+          return { url: `${base}/api/ai/research/`, body: { question: messageToSend, history, session_id: currentSessionId } };
+        } else if (currentMode === "writing") {
+          return { url: `${base}/api/ai/writing/`, body: { question: messageToSend, history, session_id: currentSessionId } };
+        }
+        return { url: `${base}/api/ai/general/`, body: { question: messageToSend, history, session_id: currentSessionId } };
+      };
+
+      const { url, body } = getEndpoint();
 
       const res = await authFetch(url, {
         method: "POST",
@@ -754,28 +780,13 @@ export default function AIChat({ onNavigate }) {
 
       if (!res.ok) {
         const errorMessage = data?.detail || data?.error || `AI request failed (${res.status})`;
+        const retryable = data?.retryable !== false && (res.status >= 500 || res.status === 429);
         if (data?.request_message) {
           setModelStatus(data.request_message);
         }
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + "-error",
-            role: "assistant",
-            content: `Error: ${errorMessage}`,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        addErrorMessage(errorMessage, retryable);
       } else if (!data) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + "-error",
-            role: "assistant",
-            content: "Received an empty response from the server. Please try again.",
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        addErrorMessage("Received an empty response from the server. Please try again.", true);
       } else {
         if (data?.request_message) {
           setModelStatus(data.request_message);
@@ -822,18 +833,21 @@ export default function AIChat({ onNavigate }) {
       }
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString() + "-error",
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again later.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      const isNetworkError = !navigator.onLine || err?.message === "Failed to fetch";
+      if (isNetworkError) {
+        addErrorMessage("You appear to be offline. Check your connection and try again.", true);
+      } else {
+        addErrorMessage("Something went wrong. Please try again.", true);
+      }
     }
 
     setLoading(false);
+  };
+
+  const retryLastMessage = () => {
+    if (!lastFailedInput || loading) return;
+    setMessages((prev) => prev.filter((m) => !m.isError));
+    sendMessage(lastFailedInput);
   };
 
   const handleKeyDown = (e) => {
@@ -1287,9 +1301,12 @@ export default function AIChat({ onNavigate }) {
           )}
 
           {messages.map((message) => (
-            <div key={message.id} className={`ai-message ${message.role}`}>
+            <div key={message.id} className={`ai-message ${message.role}${message.isError ? " error" : ""}`}>
               <div className="ai-message-inner">
-                <div className="ai-message-avatar">
+                <div className={`ai-message-avatar${message.isError ? " error" : ""}`}>
+                {message.isError ? (
+                  <AlertIcon />
+                ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
                   {message.role === "user" ? (
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -1305,6 +1322,7 @@ export default function AIChat({ onNavigate }) {
                     </>
                   )}
                 </svg>
+                )}
               </div>
               <div className="ai-message-body">
                 <div className="ai-message-name">
@@ -1315,7 +1333,20 @@ export default function AIChat({ onNavigate }) {
                     ? renderMessageContent(message.content)
                     : message.content}
                 </div>
-                {message.role === "assistant" && (
+                {message.role === "assistant" && message.isError && (
+                  <div className="ai-message-actions" style={{ opacity: 1 }}>
+                    {message.retryable && (
+                      <button
+                        onClick={retryLastMessage}
+                        className="ai-retry-button"
+                        disabled={loading}
+                      >
+                        <RetryIcon /> Retry
+                      </button>
+                    )}
+                  </div>
+                )}
+                {message.role === "assistant" && !message.isError && (
                   <div className="ai-message-actions">
                     <button
                       onClick={() => copyToClipboard(message.content, message.id)}
