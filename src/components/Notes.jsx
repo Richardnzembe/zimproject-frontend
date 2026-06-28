@@ -748,14 +748,23 @@ const Notes = ({ onOpenAI }) => {
     setAIResult("");
     setAINoteId(note.local_id);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
     try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ note_content: note.content, action }),
-      });
+      let res;
+      try {
+        res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ note_content: note.content, action }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -785,7 +794,11 @@ const Notes = ({ onOpenAI }) => {
       }
     } catch (err) {
       console.error(err);
-      setAIResult("Error contacting AI");
+      if (err?.name === "AbortError") {
+        setAIResult("Request timed out. The server may be waking up \u2014 please try again.");
+      } else {
+        setAIResult("Could not reach the AI service. Check your connection and try again.");
+      }
     }
 
     setAILoading(false);

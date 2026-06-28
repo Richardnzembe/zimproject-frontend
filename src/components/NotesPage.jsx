@@ -22,19 +22,36 @@ export default function NotesPage() {
     setLoading(true);
     setAIResult("");
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
     try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ note_content: note.content, action })
-      });
-      const data = await res.json();
-      setAIResult(data.updated_note);
+      let res;
+      try {
+        res = await authFetch(`${getApiBaseUrl()}/api/ai/notes/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ note_content: note.content, action }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAIResult(data?.error || data?.detail || `AI request failed (${res.status})`);
+      } else {
+        setAIResult(data?.updated_note || "No response from AI.");
+      }
     } catch (err) {
       console.error(err);
-      setAIResult("Error contacting AI");
+      if (err?.name === "AbortError") {
+        setAIResult("Request timed out. The server may be waking up \u2014 please try again.");
+      } else {
+        setAIResult("Could not reach the AI service. Check your connection and try again.");
+      }
     }
 
     setLoading(false);
@@ -50,6 +67,9 @@ export default function NotesPage() {
     setLoading(true);
     setAIResult("");
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
     try {
       const body = { question: "Example note content" };
       let url = "";
@@ -59,19 +79,33 @@ export default function NotesPage() {
       else if (mode === "general") url = `${getApiBaseUrl()}/api/ai/general/`;
       else return;
 
-      const res = await authFetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body)
-      });
+      let res;
+      try {
+        res = await authFetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
-      const data = await res.json();
-      setAIResult(JSON.stringify(data, null, 2));
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAIResult(data?.error || data?.detail || `AI request failed (${res.status})`);
+      } else {
+        setAIResult(JSON.stringify(data, null, 2));
+      }
     } catch (err) {
       console.error(err);
-      setAIResult("Error contacting AI");
+      if (err?.name === "AbortError") {
+        setAIResult("Request timed out. The server may be waking up \u2014 please try again.");
+      } else {
+        setAIResult("Could not reach the AI service. Check your connection and try again.");
+      }
     }
 
     setLoading(false);

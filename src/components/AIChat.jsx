@@ -676,6 +676,31 @@ export default function AIChat({ onNavigate }) {
     };
   };
 
+  const AI_REQUEST_TIMEOUT_MS = 45000;
+
+  const formatAiError = (status, data, err) => {
+    if (err?.name === "AbortError") {
+      return "The request timed out. The server may be waking up — please try again in a moment.";
+    }
+    if (err?.message === "Failed to fetch" || err?.name === "TypeError") {
+      return "Could not reach the server. Check your internet connection and try again.";
+    }
+    if (status === 401 || status === 403) {
+      return "Your session has expired. Please log in again to continue.";
+    }
+    if (status === 429) {
+      return "Too many requests. Please wait a moment before trying again.";
+    }
+    if (status >= 500) {
+      const detail = data?.detail || data?.error || "";
+      return `Server error: ${detail || "The AI service is temporarily unavailable. Please try again shortly."}`;
+    }
+    const detail = data?.detail || data?.error || "";
+    if (detail) return detail;
+    if (status) return `Request failed (${status}). Please try again.`;
+    return "Something went wrong. Please try again.";
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -744,16 +769,25 @@ export default function AIChat({ onNavigate }) {
 
       const { url, body } = getEndpointAndBody();
 
-      const res = await authFetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+
+      let res;
+      try {
+        res = await authFetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        const errorMessage = data?.detail || data?.error || `AI request failed (${res.status})`;
+        const errorMessage = formatAiError(res.status, data);
         if (data?.request_message) {
           setModelStatus(data.request_message);
         }
@@ -762,7 +796,9 @@ export default function AIChat({ onNavigate }) {
           {
             id: Date.now().toString() + "-error",
             role: "assistant",
-            content: `Error: ${errorMessage}`,
+            isError: true,
+            failedInput: messageToSend,
+            content: errorMessage,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -772,6 +808,8 @@ export default function AIChat({ onNavigate }) {
           {
             id: Date.now().toString() + "-error",
             role: "assistant",
+            isError: true,
+            failedInput: messageToSend,
             content: "Received an empty response from the server. Please try again.",
             timestamp: new Date().toISOString(),
           },
@@ -822,18 +860,26 @@ export default function AIChat({ onNavigate }) {
       }
     } catch (err) {
       console.error(err);
+      const errorMessage = formatAiError(null, null, err);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString() + "-error",
           role: "assistant",
-          content: "Sorry, I encountered an error. Please try again later.",
+          isError: true,
+          failedInput: messageToSend,
+          content: errorMessage,
           timestamp: new Date().toISOString(),
         },
       ]);
     }
 
     setLoading(false);
+  };
+
+  const retryLastMessage = (failedInput) => {
+    setMessages((prev) => prev.filter((m) => !(m.isError && m.failedInput === failedInput)));
+    setInput(failedInput);
   };
 
   const handleKeyDown = (e) => {
@@ -982,7 +1028,7 @@ export default function AIChat({ onNavigate }) {
 
         <div className="sidebar-content">
           {sidebarSessions.length === 0 ? (
-            <div style={{ padding: "20px", textAlign: "center", color: "#8e8e8e", fontSize: "0.875rem" }}>
+            <div className="sidebar-empty">
               No chat history yet
             </div>
           ) : (
@@ -1001,6 +1047,7 @@ export default function AIChat({ onNavigate }) {
                   {renameSessionId === session.id ? (
                     <input
                       type="text"
+                      className="sidebar-rename-input"
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       onBlur={(e) => saveRename(session.id, e)}
@@ -1009,22 +1056,13 @@ export default function AIChat({ onNavigate }) {
                         if (e.key === "Escape") cancelRename(e);
                       }}
                       autoFocus
-                      style={{
-                        flex: 1,
-                        background: "#3a3a3a",
-                        border: "1px solid #4a4a4a",
-                        borderRadius: "4px",
-                        padding: "4px 8px",
-                        color: "#fff",
-                        fontSize: "0.875rem",
-                      }}
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
                     <>
                       <span className="sidebar-chat-item-title">{session.title}</span>
                       {session.isDraft ? null : deleteConfirmId === session.id ? (
-                        <div style={{ display: "flex", gap: "6px" }}>
+                        <div className="sidebar-delete-confirm">
                           <button onClick={(e) => deleteSession(session.id, e)} title="Confirm delete">
                             Confirm
                           </button>
@@ -1098,10 +1136,7 @@ export default function AIChat({ onNavigate }) {
 
       {/* Main content */}
       <main
-        className={`ai-main ${headerVisible ? "" : "header-hidden"}`}
-        style={{
-          marginLeft: sidebarOpen && !isMobile ? "260px" : "0",
-        }}
+        className={`ai-main ${headerVisible ? "" : "header-hidden"} ${sidebarOpen && !isMobile ? "sidebar-shifted" : ""}`}
       >
         {/* Header with toggle button */}
         {headerVisible && (
@@ -1135,7 +1170,7 @@ export default function AIChat({ onNavigate }) {
                 </select>
               </div>
               <ThemeToggle compact iconOnly />
-              <div ref={headerMenuRef} style={{ position: "relative" }}>
+              <div ref={headerMenuRef} className="ai-header-menu-wrap">
                 <button
                   className="theme-toggle compact"
                   onClick={() => setHeaderMenuOpen((prev) => !prev)}
@@ -1149,16 +1184,7 @@ export default function AIChat({ onNavigate }) {
                   </svg>
                 </button>
                 {headerMenuOpen && (
-                  <div
-                    className="mode-dropdown-menu"
-                    style={{
-                      right: 0,
-                      left: "auto",
-                      top: "calc(100% + 8px)",
-                      minWidth: "210px",
-                      zIndex: 120,
-                    }}
-                  >
+                  <div className="mode-dropdown-menu ai-header-dropdown">
                     <button
                       onClick={() => {
                         createShareLink("read", currentSessionId);
@@ -1208,27 +1234,26 @@ export default function AIChat({ onNavigate }) {
           </button>
         )}
         {shareStatus && (
-          <div style={{ padding: "6px 20px", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+          <div className="ai-status-bar">
             {shareStatus}
           </div>
         )}
         {modelStatus && (
-          <div style={{ padding: "0 20px 8px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+          <div className="ai-status-bar">
             {modelStatus}
           </div>
         )}
         {currentMembers.length > 0 && (
-          <div style={{ padding: "0 20px 8px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+          <div className="ai-status-bar">
             Collaborators:
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
+            <div className="ai-collaborators">
               {currentMembers.map((member) => (
-                <span key={member.user?.id || member.user?.username} className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span key={member.user?.id || member.user?.username} className="tag ai-collab-tag">
                   {member.user?.username}
                   {member.user?.id && currentShare?.token && (
                     <button
-                      className="button-secondary"
+                      className="button-secondary ai-collab-remove"
                       onClick={() => removeMemberFromShare(currentShare.token, member.user.id)}
-                      style={{ padding: "2px 6px", fontSize: "0.75rem" }}
                     >
                       Remove
                     </button>
@@ -1239,7 +1264,7 @@ export default function AIChat({ onNavigate }) {
           </div>
         )}
         {currentShare?.token && (
-          <div style={{ padding: "0 20px 12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div className="ai-share-actions">
             <button className="theme-toggle compact" onClick={inviteUserToShare}>
               Add user
             </button>
@@ -1287,17 +1312,24 @@ export default function AIChat({ onNavigate }) {
           )}
 
           {messages.map((message) => (
-            <div key={message.id} className={`ai-message ${message.role}`}>
+            <div key={message.id} className={`ai-message ${message.role}${message.isError ? " ai-message-error" : ""}`}>
               <div className="ai-message-inner">
                 <div className="ai-message-avatar">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
                   {message.role === "user" ? (
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  ) : message.isError ? (
+                    <circle cx="12" cy="12" r="10"></circle>
                   ) : (
                     <rect x="2" y="2" width="20" height="20" rx="2"></rect>
                   )}
                   {message.role === "user" ? (
                     <circle cx="12" cy="7" r="4"></circle>
+                  ) : message.isError ? (
+                    <>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </>
                   ) : (
                     <>
                       <path d="M12 8v8"></path>
@@ -1308,14 +1340,31 @@ export default function AIChat({ onNavigate }) {
               </div>
               <div className="ai-message-body">
                 <div className="ai-message-name">
-                  {message.role === "user" ? (message.senderName || "You") : "NotesAI-RNA AI"}
+                  {message.role === "user" ? (message.senderName || "You") : message.isError ? "Error" : "NotesAI-RNA AI"}
                 </div>
                 <div className="chat-message-text">
-                  {message.role === "assistant"
-                    ? renderMessageContent(message.content)
-                    : message.content}
+                  {message.isError
+                    ? message.content
+                    : message.role === "assistant"
+                      ? renderMessageContent(message.content)
+                      : message.content}
                 </div>
-                {message.role === "assistant" && (
+                {message.isError && message.failedInput && (
+                  <div className="ai-message-actions">
+                    <button
+                      onClick={() => retryLastMessage(message.failedInput)}
+                      className="ai-retry-button"
+                      disabled={loading}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                      </svg>
+                      {" Retry"}
+                    </button>
+                  </div>
+                )}
+                {message.role === "assistant" && !message.isError && (
                   <div className="ai-message-actions">
                     <button
                       onClick={() => copyToClipboard(message.content, message.id)}
@@ -1348,13 +1397,7 @@ export default function AIChat({ onNavigate }) {
         </div>
 
         {/* Input area */}
-        <div
-          className="ai-composer"
-          style={{
-            left: sidebarOpen && !isMobile ? "calc(24px + 260px)" : "24px",
-            right: "24px",
-          }}
-        >
+        <div className={`ai-composer ${sidebarOpen && !isMobile ? "sidebar-shifted" : ""}`}>
           <div className="ai-composer-inner">
             <textarea
               ref={inputRef}
