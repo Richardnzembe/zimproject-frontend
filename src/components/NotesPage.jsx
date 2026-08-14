@@ -5,7 +5,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { getApiBaseUrl, getAuthToken, authFetch } from "../lib/api";
 
 export default function NotesPage() {
-  const [notes, setNotes] = useState([
+  const [notes] = useState([
     { id: 1, title: "Biology Notes", subject: "Biology", tags: ["cells"], content: "Cells are the basic unit of life..." },
     { id: 2, title: "History Notes", subject: "History", tags: ["WW2"], content: "World War II started in 1939..." }
   ]);

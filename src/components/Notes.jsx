@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import React, { useEffect, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import ImageToText from "./ImageToText";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
@@ -88,24 +87,8 @@ const Notes = ({ onOpenAI }) => {
   const sortNotes = (items) =>
     [...items].sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0));
 
-  const buildLocalFromServer = (item, userId) => ({
-    local_id: `server-${item.id}`,
-    server_id: item.id,
-    client_id: item.client_id || null,
-    user_id: userId,
-    title: item.title,
-    subject: item.subject,
-    category: item.category,
-    tags: normalizeTags(item.tags),
-    content: item.content,
-    created_at: item.created_at,
-    updated_at: item.updated_at || item.created_at,
-    last_edited_by: item.last_edited_by || null,
-    sync_status: "synced",
-    pending_action: null,
-  });
 
-  const loadLocalNotes = async () => {
+  const loadLocalNotes = useCallback(async () => {
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return [];
     const local = await getNotesByUser(userId);
@@ -115,9 +98,9 @@ const Notes = ({ onOpenAI }) => {
     }));
     setNotes(sortNotes(normalized));
     return normalized;
-  };
+  }, []);
 
-  const mergeServerNotes = async (serverNotes) => {
+  const mergeServerNotes = useCallback(async (serverNotes) => {
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
     const local = await getNotesByUser(userId);
@@ -129,6 +112,23 @@ const Notes = ({ onOpenAI }) => {
       pending.filter((n) => n.client_id).map((n) => [n.client_id, n])
     );
 
+    const buildLocalFromServer = (item, userId) => ({
+      local_id: `server-${item.id}`,
+      server_id: item.id,
+      client_id: item.client_id || null,
+      user_id: userId,
+      title: item.title,
+      subject: item.subject,
+      category: item.category,
+      tags: normalizeTags(item.tags),
+      content: item.content,
+      created_at: item.created_at,
+      updated_at: item.updated_at || item.created_at,
+      last_edited_by: item.last_edited_by || null,
+      sync_status: "synced",
+      pending_action: null,
+    });
+
     const merged = [...pending];
     for (const item of serverNotes) {
       if (pendingByServerId.has(item.id)) continue;
@@ -138,9 +138,9 @@ const Notes = ({ onOpenAI }) => {
 
     await replaceUserNotes(userId, merged);
     setNotes(sortNotes(merged));
-  };
+  }, []);
 
-  const loadApiNotes = async () => {
+  const loadApiNotes = useCallback(async () => {
     if (!navigator.onLine) return;
     setSyncing(true);
     setStatus("");
@@ -163,7 +163,7 @@ const Notes = ({ onOpenAI }) => {
     } finally {
       setSyncing(false);
     }
-  };
+  }, [mergeServerNotes]);
 
   const fetchShareLinks = async (noteId) => {
     const info = await fetchShareLinksApi({
@@ -331,7 +331,7 @@ const Notes = ({ onOpenAI }) => {
     flashStatus(setShareStatus, "Share link revoked.");
   };
 
-  const syncPendingNotes = async () => {
+  const syncPendingNotes = useCallback(async () => {
     if (!navigator.onLine) return;
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
@@ -421,7 +421,7 @@ const Notes = ({ onOpenAI }) => {
     const updated = await getNotesByUser(userId);
     setNotes(sortNotes(updated));
     setSyncing(false);
-  };
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -443,7 +443,7 @@ const Notes = ({ onOpenAI }) => {
     };
 
     initialize();
-  }, []);
+  }, [loadLocalNotes, loadApiNotes, syncPendingNotes]);
 
   useEffect(() => {
     const onAuthChange = async () => {
@@ -465,10 +465,10 @@ const Notes = ({ onOpenAI }) => {
     };
     window.addEventListener("auth-changed", onAuthChange);
     return () => window.removeEventListener("auth-changed", onAuthChange);
-  }, []);
+  }, [loadLocalNotes, loadApiNotes, syncPendingNotes]);
 
-  const syncNotesCb = useCallback(() => syncPendingNotes(), []);
-  const loadNotesCb = useCallback(() => loadApiNotes(), []);
+  const syncNotesCb = useCallback(() => syncPendingNotes(), [syncPendingNotes]);
+  const loadNotesCb = useCallback(() => loadApiNotes(), [loadApiNotes]);
   useOnlineSync({ syncFn: syncNotesCb, loadFn: loadNotesCb });
 
   useEffect(() => {
@@ -538,10 +538,11 @@ const Notes = ({ onOpenAI }) => {
 
   useEffect(() => {
     if (!editorRef.current) return;
-    const nextHtml = form.content || "";
+    const nextHtml = editorContentRef.current || "";
     if (editorRef.current.innerHTML !== nextHtml) {
       editorRef.current.innerHTML = nextHtml;
     }
+    // keep editorContentRef in sync
     editorContentRef.current = nextHtml;
     normalizeEditorDirection();
   }, [editorNonce, editingId, activeNote?.local_id]);

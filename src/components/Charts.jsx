@@ -33,7 +33,6 @@ const Charts = ({
   customTitle,
   onDeleteAll,
   showActions = false,
-  onContinueChart,
   onTitleChange
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -60,7 +59,7 @@ const Charts = ({
       history.forEach((item) => {
         if (item.created_at) {
           const itemDate = new Date(item.created_at).toLocaleDateString();
-          if (dateCount.hasOwnProperty(itemDate)) {
+          if (Object.prototype.hasOwnProperty.call(dateCount, itemDate)) {
             dateCount[itemDate]++;
           }
         }

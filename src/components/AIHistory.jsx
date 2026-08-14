@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId, authFetch } from "../lib/api";
 import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
 import { EditIcon, TrashIcon } from "../lib/icons";
@@ -21,7 +21,7 @@ const AIHistory = () => {
 
   const resolveUserId = async () => getAuthUserId() || (await ensureAuthUserId());
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     const token = getAuthToken();
     if (!token) {
       setStatus("Please login to view history.");
@@ -86,7 +86,7 @@ const AIHistory = () => {
     }
 
     setLoading(false);
-  };
+  }, []);
 
   const deleteAllHistory = async () => {
     const token = getAuthToken();
@@ -179,13 +179,17 @@ const AIHistory = () => {
 
   useEffect(() => {
     if (authToken) {
-      fetchHistory();
+      setTimeout(() => {
+        fetchHistory();
+      }, 0);
     } else {
-      setHistory([]);
-      setStatus("");
-      setExpandedId(null);
+      setTimeout(() => {
+        setHistory([]);
+        setStatus("");
+        setExpandedId(null);
+      }, 0);
     }
-  }, [authToken]);
+  }, [authToken, fetchHistory]);
 
   const visibleHistory = history.slice(0, visibleCount);
 

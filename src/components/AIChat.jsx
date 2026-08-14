@@ -10,172 +10,6 @@ import { useClickOutside, useAutoResize } from "../lib/hooks";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
 
-// Icons
-const PlusIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);
-
-const SendIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <line x1="22" y1="2" x2="11" y2="13"></line>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-  </svg>
-);
-
-const MenuIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <line x1="3" y1="12" x2="21" y2="12"></line>
-    <line x1="3" y1="6" x2="21" y2="6"></line>
-    <line x1="3" y1="18" x2="21" y2="18"></line>
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <polyline points="15 18 9 12 15 6"></polyline>
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-    <polyline points="9 18 15 12 9 6"></polyline>
-  </svg>
-);
-
-const HomeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-  </svg>
-);
-
-const NotesIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-    <polyline points="14 2 14 8 20 8"></polyline>
-    <line x1="16" y1="13" x2="8" y2="13"></line>
-    <line x1="16" y1="17" x2="8" y2="17"></line>
-  </svg>
-);
-
-const UserIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-    <circle cx="12" cy="7" r="4"></circle>
-  </svg>
-);
-
-const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-    <polyline points="16 17 21 12 16 7"></polyline>
-    <line x1="21" y1="12" x2="9" y2="12"></line>
-  </svg>
-);
-
-const EditIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <polyline points="3 6 5 6 21 6"></polyline>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-  </svg>
-);
-
-const LinkIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M10 13a5 5 0 0 1 0-7l2-2a5 5 0 0 1 7 7l-1 1"></path>
-    <path d="M14 11a5 5 0 0 1 0 7l-2 2a5 5 0 0 1-7-7l1-1"></path>
-  </svg>
-);
-
-const UsersIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-    <circle cx="9" cy="7" r="4"></circle>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-  </svg>
-);
-
-const CopyIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <polyline points="20 6 9 17 4 12"></polyline>
-  </svg>
-);
-
-const RetryIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-    <polyline points="23 4 23 10 17 10"></polyline>
-    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-  </svg>
-);
-
-const AlertIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <circle cx="12" cy="12" r="10"></circle>
-    <line x1="12" y1="8" x2="12" y2="12"></line>
-    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-  </svg>
-);
-
-const BotIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-    <rect x="2" y="2" width="20" height="20" rx="2"></rect>
-    <path d="M12 8v8"></path>
-    <path d="M8 12h8"></path>
-  </svg>
-);
-
-const ChatIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
-
-const USER_OPENROUTER_MODEL_STORAGE = "NotesAI-RNA_openrouter_model";
-const AI_HEADER_VISIBILITY_STORAGE = "NotesAI-RNA_ai_header_visible";
-const FREE_OPENROUTER_MODELS = [
-  { value: "auto", label: "Auto (OpenRouter default)" },
-  { value: "deepseek/deepseek-r1:free", label: "DeepSeek R1 (Free)" },
-  { value: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B Instruct (Free)" },
-  { value: "qwen/qwen-2.5-72b-instruct:free", label: "Qwen 2.5 72B Instruct (Free)" },
-  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B Instruct (Free)" },
-  { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
-];
-const CHAT_MODES = [
-  { value: "general", label: "General", description: "Quick answers and everyday help." },
-  { value: "research", label: "Deep Research", description: "Structured analysis, tradeoffs, and deeper reasoning." },
-  { value: "writing", label: "Writing", description: "Draft, rewrite, and polish text clearly." },
-];
-
-const normalizeChatMode = (value) => {
-  if (value === "study" || value === "project") {
-    return "research";
-  }
-  if (value === "writing" || value === "research" || value === "general") {
-    return value;
-  }
-  return "general";
-};
-
-const getChatModeLabel = (value) =>
-  CHAT_MODES.find((item) => item.value === normalizeChatMode(value))?.label || "General";
 
 export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
@@ -202,6 +36,10 @@ export default function AIChat({ onNavigate }) {
   const [shareStatus, setShareStatus] = useState("");
   const [modelStatus, setModelStatus] = useState("");
   const [shareInfoBySession, setShareInfoBySession] = useState({});
+  const currentShare =
+    shareInfoBySession[currentSessionId]?.find((s) => s.permission === "collab") ||
+    shareInfoBySession[currentSessionId]?.[0];
+  const currentMembers = currentShare?.members || [];
   const [lastFailedInput, setLastFailedInput] = useState(null);
   const [lastFailedMode, setLastFailedMode] = useState(null);
   const [selectedModel, setSelectedModel] = useState(() => {
@@ -234,7 +72,7 @@ export default function AIChat({ onNavigate }) {
     return input.question || input.notes || "New Chat";
   }
 
-  function startNewChat() {
+  const startNewChat = useCallback(() => {
     const nextDraftSessionId = crypto.randomUUID();
     setDraftSessionId(nextDraftSessionId);
     setMode("general");
@@ -244,17 +82,17 @@ export default function AIChat({ onNavigate }) {
     setRenameSessionId(null);
     setRenameValue("");
     setShareStatus("");
-  }
+    }, []);
 
-  const formatInputData = (input_data) => {
+  const formatInputData = useCallback((input_data) => {
     if (!input_data) return "";
     if (input_data.question) return input_data.question;
     if (input_data.notes) return input_data.notes;
     if (input_data.project_name) return input_data.project_name;
     return JSON.stringify(input_data);
-  };
+  }, []);
 
-  const fetchShareLinks = async (sessionId, sessionKey) => {
+  const fetchShareLinks = useCallback(async (sessionId, sessionKey) => {
     const info = await fetchShareLinksApi({
       resourceType: "chat",
       queryParams: { session_id: sessionKey },
@@ -262,9 +100,9 @@ export default function AIChat({ onNavigate }) {
     if (info) {
       setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
     }
-  };
+  }, []);
 
-  function openSession(session) {
+  const openSession = useCallback((session) => {
     setDraftSessionId(null);
     setCurrentSessionId(session.id);
     setMode(normalizeChatMode(session.mode || "general"));
@@ -297,7 +135,7 @@ export default function AIChat({ onNavigate }) {
     }
 
     setMessages(reconstructedMessages);
-  }
+  }, [fetchShareLinks, formatInputData]);
 
   function upsertChatSession(prevSessions, sessionId, sessionTitle, sessionMode, inputData, historyItem) {
     const existingIndex = prevSessions.findIndex((session) => session.id === sessionId);
@@ -337,7 +175,7 @@ export default function AIChat({ onNavigate }) {
     ];
   }
 
-  async function loadHistory({ preferRemote = false } = {}) {
+  const loadHistory = useCallback(async ({ preferRemote = false } = {}) => {
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) {
       setChatSessions([]);
@@ -410,8 +248,8 @@ export default function AIChat({ onNavigate }) {
         startNewChat();
       }
     }
-  }
-
+  }, [currentSessionId, draftSessionId, openSession, startNewChat]);
+  
   // Handle resize
   useEffect(() => {
     const handleResize = () => {
@@ -450,7 +288,7 @@ export default function AIChat({ onNavigate }) {
       setCurrentSessionId(null);
       setDraftSessionId(null);
     }
-  }, [authToken]);
+  }, [authToken, loadHistory]);
 
   // Refresh when tab regains focus or network returns
   useEffect(() => {
@@ -474,7 +312,7 @@ export default function AIChat({ onNavigate }) {
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [authToken, currentSessionId]);
+  }, [authToken, currentSessionId, loadHistory]);
 
   useEffect(() => {
     localStorage.setItem(USER_OPENROUTER_MODEL_STORAGE, selectedModel);
@@ -493,25 +331,6 @@ export default function AIChat({ onNavigate }) {
     inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 200)}px`;
   }, [input]);
 
-  const fetchShareLinks = async (sessionId, sessionKey) => {
-    const token = getAuthToken();
-    if (!token) return;
-    try {
-      const res = await authFetch(
-        `${getApiBaseUrl()}/api/share/links/?resource_type=chat&session_id=${encodeURIComponent(sessionKey)}`,
-        { method: "GET" }
-      );
-      const data = await res.json().catch(() => []);
-      if (!res.ok) {
-        console.warn("Failed to fetch share links for session:", sessionId, res.status);
-        return;
-      }
-      const info = Array.isArray(data) ? data : [];
-      setShareInfoBySession((prev) => ({ ...prev, [sessionId]: info }));
-    } catch (err) {
-      console.warn("Failed to fetch share links:", err);
-    }
-  };
 
   const createShareLink = async (permission, sessionId = currentSessionId) => {
     if (!sessionId) return;
@@ -595,42 +414,6 @@ export default function AIChat({ onNavigate }) {
     }
   };
 
-  const sendMessage = async (retryText = null) => {
-    const messageText = retryText || input;
-    if (!messageText.trim() || loading) return;
-  const getEndpointAndBody = () => {
-    const buildHistory = () => {
-      const history = [];
-      messages.forEach((msg) => {
-        if (msg.id === "welcome") return;
-        if (msg.role !== "user" && msg.role !== "assistant") return;
-        history.push({ role: msg.role, content: msg.content });
-      });
-      return history.slice(-10);
-    };
-
-    const history = buildHistory();
-    if (mode === "general") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/general/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    } else if (mode === "research") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/research/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    } else if (mode === "writing") {
-      return {
-        url: `${getApiBaseUrl()}/api/ai/writing/`,
-        body: { question: input, history, session_id: currentSessionId },
-      };
-    }
-    return {
-      url: `${getApiBaseUrl()}/api/ai/general/`,
-      body: { question: input, history, session_id: currentSessionId },
-    };
-  };
 
   const AI_REQUEST_TIMEOUT_MS = 45000;
 
@@ -657,8 +440,9 @@ export default function AIChat({ onNavigate }) {
     return "Something went wrong. Please try again.";
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+  const sendMessage = async (retryText = null) => {
+    const messageText = retryText || input;
+    if (!messageText.trim() || loading) return;
 
     const token = getAuthToken();
     if (!token) {
@@ -808,18 +592,6 @@ export default function AIChat({ onNavigate }) {
             timestamp: new Date().toISOString(),
           },
         ]);
-      } else if (!data) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + "-error",
-            role: "assistant",
-            isError: true,
-            failedInput: messageToSend,
-            content: "Received an empty response from the server. Please try again.",
-            timestamp: new Date().toISOString(),
-          },
-        ]);
       } else {
         if (data?.request_message) {
           setModelStatus(data.request_message);
@@ -889,13 +661,15 @@ export default function AIChat({ onNavigate }) {
     setLoading(false);
   };
 
-  const retryLastMessage = () => {
+  const retryLastMessage = (failedInput) => {
+    if (typeof failedInput === "string") {
+      setMessages((prev) => prev.filter((m) => !(m.isError && m.failedInput === failedInput)));
+      setInput(failedInput);
+      return;
+    }
     if (!lastFailedInput || loading) return;
     setMessages((prev) => prev.filter((m) => !m.isError));
     sendMessage(lastFailedInput);
-  const retryLastMessage = (failedInput) => {
-    setMessages((prev) => prev.filter((m) => !(m.isError && m.failedInput === failedInput)));
-    setInput(failedInput);
   };
 
   const handleKeyDown = (e) => {
@@ -1012,10 +786,6 @@ export default function AIChat({ onNavigate }) {
     isDraftSession && currentSessionId
       ? [{ id: currentSessionId, title: draftSessionTitle, isDraft: true }, ...chatSessions]
       : chatSessions;
-  const currentShare =
-    shareInfoBySession[currentSessionId]?.find((s) => s.permission === "collab") ||
-    shareInfoBySession[currentSessionId]?.[0];
-  const currentMembers = currentShare?.members || [];
   const modelOptions = FREE_OPENROUTER_MODELS.some((option) => option.value === selectedModel)
     ? FREE_OPENROUTER_MODELS
     : [...FREE_OPENROUTER_MODELS, { value: selectedModel, label: `Custom (${selectedModel})` }];
@@ -1327,90 +1097,78 @@ export default function AIChat({ onNavigate }) {
             </div>
           )}
 
-          {messages.map((message) => (
-            <div key={message.id} className={`ai-message ${message.role}${message.isError ? " error" : ""}`}>
-            <div key={message.id} className={`ai-message ${message.role}${message.isError ? " ai-message-error" : ""}`}>
-              <div className="ai-message-inner">
-                <div className={`ai-message-avatar${message.isError ? " error" : ""}`}>
-                {message.isError ? (
-                  <AlertIcon />
-                ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
-                  {message.role === "user" ? (
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  ) : message.isError ? (
-                    <circle cx="12" cy="12" r="10"></circle>
-                  ) : (
-                    <rect x="2" y="2" width="20" height="20" rx="2"></rect>
-                  )}
-                  {message.role === "user" ? (
-                    <circle cx="12" cy="7" r="4"></circle>
-                  ) : message.isError ? (
-                    <>
-                      <line x1="12" y1="8" x2="12" y2="12"></line>
-                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </>
-                  ) : (
-                    <>
-                      <path d="M12 8v8"></path>
-                      <path d="M8 12h8"></path>
-                    </>
-                  )}
-                </svg>
-                )}
-              </div>
-              <div className="ai-message-body">
-                <div className="ai-message-name">
-                  {message.role === "user" ? (message.senderName || "You") : message.isError ? "Error" : "NotesAI-RNA AI"}
-                </div>
-                <div className="chat-message-text">
-                  {message.isError
-                    ? message.content
-                    : message.role === "assistant"
-                      ? renderMessageContent(message.content)
-                      : message.content}
-                </div>
-                {message.role === "assistant" && message.isError && (
-                  <div className="ai-message-actions" style={{ opacity: 1 }}>
-                    {message.retryable && (
-                      <button
-                        onClick={retryLastMessage}
-                        className="ai-retry-button"
-                        disabled={loading}
-                      >
-                        <RetryIcon /> Retry
-                      </button>
-                    )}
-                {message.isError && message.failedInput && (
-                  <div className="ai-message-actions">
-                    <button
-                      onClick={() => retryLastMessage(message.failedInput)}
-                      className="ai-retry-button"
-                      disabled={loading}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <polyline points="23 4 23 10 17 10"></polyline>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          {messages.map((message) => {
+            return (
+              <div key={message.id} className={`ai-message ${message.role}${message.isError ? " ai-message-error" : ""}`}>
+                <div className="ai-message-inner">
+                  <div className={`ai-message-avatar${message.isError ? " error" : ""}`}>
+                    {message.isError ? (
+                      <AlertIcon />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
+                        {message.role === "user" ? (
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        ) : message.isError ? (
+                          <circle cx="12" cy="12" r="10"></circle>
+                        ) : (
+                          <rect x="2" y="2" width="20" height="20" rx="2"></rect>
+                        )}
+                        {message.role === "user" ? (
+                          <circle cx="12" cy="7" r="4"></circle>
+                        ) : message.isError ? (
+                          <>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                          </>
+                        ) : (
+                          <>
+                            <path d="M12 8v8"></path>
+                            <path d="M8 12h8"></path>
+                          </>
+                        )}
                       </svg>
-                      {" Retry"}
-                    </button>
+                    )}
                   </div>
-                )}
-                {message.role === "assistant" && !message.isError && (
-                  <div className="ai-message-actions">
-                    <button
-                      onClick={() => copyToClipboard(message.content, message.id)}
-                      className="ai-copy-button"
-                    >
-                      {copiedId === message.id ? <CheckIcon /> : <CopyIcon />}
-                      {copiedId === message.id ? " Copied" : " Copy"}
-                    </button>
+                  <div className="ai-message-body">
+                    <div className="ai-message-name">
+                      {message.role === "user" ? (message.senderName || "You") : message.isError ? "Error" : "NotesAI-RNA AI"}
+                    </div>
+                    <div className="chat-message-text">
+                      {message.isError ? message.content : message.role === "assistant" ? renderMessageContent(message.content) : message.content}
+                    </div>
+                    {message.role === "assistant" && message.isError && (
+                      <div className="ai-message-actions" style={{ opacity: 1 }}>
+                        {message.retryable && (
+                          <button onClick={retryLastMessage} className="ai-retry-button" disabled={loading}>
+                            <RetryIcon /> Retry
+                          </button>
+                        )}
+                        {message.isError && message.failedInput && (
+                          <div className="ai-message-actions">
+                            <button onClick={() => retryLastMessage(message.failedInput)} className="ai-retry-button" disabled={loading}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                                <polyline points="23 4 23 10 17 10"></polyline>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                              </svg>
+                              {" Retry"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {message.role === "assistant" && !message.isError && (
+                      <div className="ai-message-actions">
+                        <button onClick={() => copyToClipboard(message.content, message.id)} className="ai-copy-button">
+                          {copiedId === message.id ? <CheckIcon /> : <CopyIcon />}
+                          {copiedId === message.id ? " Copied" : " Copy"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {loading && (
             <div className="ai-typing">
@@ -1485,8 +1243,4 @@ export default function AIChat({ onNavigate }) {
     </div>
   );
 }
-
-
-
-
 

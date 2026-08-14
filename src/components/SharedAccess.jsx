@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId } from "../lib/api";
 import { renderMessageContent } from "../lib/chatFormatting";
 import { BackIcon } from "../lib/icons";
@@ -30,7 +30,7 @@ export default function SharedAccess({ token, onNavigate }) {
     return msg.username || "User";
   };
 
-  const fetchShare = async () => {
+  const fetchShare = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -74,16 +74,16 @@ export default function SharedAccess({ token, onNavigate }) {
         setTaskDraft(data.task || null);
         setNote(null);
       }
-    } catch (err) {
+    } catch {
       setError("Unable to load shared content.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchShare();
-  }, [token]);
+  }, [token, fetchShare]);
 
   const displayMembers = useMemo(() => {
     if (!members?.length) return [];
@@ -106,7 +106,7 @@ export default function SharedAccess({ token, onNavigate }) {
       } else {
         setError(data?.detail || "Unable to send message.");
       }
-    } catch (err) {
+    } catch {
       setError("Unable to send message.");
     } finally {
       setSaving(false);
@@ -129,7 +129,7 @@ export default function SharedAccess({ token, onNavigate }) {
         return;
       }
       setNote(data.note || noteDraft);
-    } catch (err) {
+    } catch {
       setError("Unable to update note.");
     } finally {
       setSaving(false);
@@ -173,7 +173,7 @@ export default function SharedAccess({ token, onNavigate }) {
       }
       setTask(data.task || taskDraft);
       setTaskDraft(data.task || taskDraft);
-    } catch (err) {
+    } catch {
       setError("Unable to update task.");
     } finally {
       setSaving(false);

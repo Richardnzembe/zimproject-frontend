@@ -178,15 +178,17 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
     const uid = params.get("uid");
     const tokenParam = params.get("token");
     if (uid && tokenParam) {
-      setResetUid(uid);
-      setResetToken(tokenParam);
-      setResetStep("confirm");
+      setTimeout(() => {
+        setResetUid(uid);
+        setResetToken(tokenParam);
+        setResetStep("confirm");
+      }, 0);
     }
   }, []);
 
   useEffect(() => {
     if (!token) {
-      setDisplayUsername("");
+      setTimeout(() => { setDisplayUsername(""); }, 0);
       return;
     }
 
@@ -199,8 +201,10 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
           return;
         }
         if (isActive) {
-          setDisplayUsername(data?.username || "");
-          setProfileId(data?.id || null);
+          setTimeout(() => {
+            setDisplayUsername(data?.username || "");
+            setProfileId(data?.id || null);
+          }, 0);
         }
       } catch (err) {
         console.error(err);
@@ -215,7 +219,9 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
   useEffect(() => {
     if (token && accountOptionsTrigger > 0) {
-      setAccountOptionsOpen(true);
+      setTimeout(() => {
+        setAccountOptionsOpen(true);
+      }, 0);
     }
   }, [accountOptionsTrigger, token]);
 
@@ -228,8 +234,10 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         const data = await safeJson(res);
         if (!res.ok || !isActive) return;
         const configured = Boolean(data?.configured);
-        setUseOwnKey(configured);
-        setKeyConfigured(configured);
+        setTimeout(() => {
+          setUseOwnKey(configured);
+          setKeyConfigured(configured);
+        }, 0);
       } catch {
         // Keep defaults on transient failures.
       }
