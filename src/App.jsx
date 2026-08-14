@@ -17,7 +17,7 @@ import "./styles.css";
 function App() {
   const [activeView, setActiveView] = useState("home");
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
-  const [authToken, setAuthToken] = useState(getAuthToken());
+  const [_authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
 
   useEffect(() => {
@@ -45,8 +45,10 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("share");
     if (token) {
-      setShareToken(token);
-      setActiveView("share");
+      setTimeout(() => {
+        setShareToken(token);
+        setActiveView("share");
+      }, 0);
     }
   }, []);
 

@@ -10,7 +10,7 @@ export default function Navigation({ activeView, onViewChange }) {
 
   useEffect(() => {
     if (!token) {
-      setUsername("");
+      setTimeout(() => { setUsername(""); }, 0);
       return;
     }
     let active = true;
@@ -25,7 +25,7 @@ export default function Navigation({ activeView, onViewChange }) {
         // ignore
       }
     };
-    loadProfile();
+    setTimeout(() => { loadProfile(); }, 0);
     return () => {
       active = false;
     };

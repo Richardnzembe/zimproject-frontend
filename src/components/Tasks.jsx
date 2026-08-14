@@ -59,21 +59,6 @@ const Tasks = () => {
     due_date: "",
   });
 
-  const buildLocalFromServer = (item, userId) => ({
-    local_id: `server-${item.id}`,
-    server_id: item.id,
-    client_id: item.client_id || null,
-    user_id: userId,
-    title: item.title,
-    description: item.description || "",
-    is_completed: Boolean(item.is_completed),
-    priority: normalizePriority(item.priority),
-    due_date: item.due_date || null,
-    created_at: item.created_at,
-    updated_at: item.updated_at || item.created_at,
-    sync_status: "synced",
-    pending_action: null,
-  });
 
   const loadLocalTasks = async () => {
     const userId = getAuthUserId() || (await ensureAuthUserId());
@@ -87,7 +72,7 @@ const Tasks = () => {
     return normalized;
   };
 
-  const mergeServerTasks = async (serverTasks) => {
+  const mergeServerTasks = useCallback(async (serverTasks) => {
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
     const local = await getTasksByUser(userId);
@@ -99,6 +84,22 @@ const Tasks = () => {
       pending.filter((t) => t.client_id).map((t) => [t.client_id, t])
     );
 
+    const buildLocalFromServer = (item, userId) => ({
+      local_id: `server-${item.id}`,
+      server_id: item.id,
+      client_id: item.client_id || null,
+      user_id: userId,
+      title: item.title,
+      description: item.description || "",
+      is_completed: Boolean(item.is_completed),
+      priority: normalizePriority(item.priority),
+      due_date: item.due_date || null,
+      created_at: item.created_at,
+      updated_at: item.updated_at || item.created_at,
+      sync_status: "synced",
+      pending_action: null,
+    });
+
     const merged = [...pending];
     for (const item of serverTasks) {
       if (pendingByServerId.has(item.id)) continue;
@@ -108,9 +109,9 @@ const Tasks = () => {
 
     await replaceUserTasks(userId, merged);
     setTasks(sortTasks(merged));
-  };
+  }, []);
 
-  const loadApiTasks = async () => {
+  const loadApiTasks = useCallback(async () => {
     if (!navigator.onLine) return;
     setSyncing(true);
     setStatus("");
@@ -130,9 +131,8 @@ const Tasks = () => {
     } finally {
       setSyncing(false);
     }
-  };
-
-  const syncPendingTasks = async () => {
+  }, [mergeServerTasks]);
+  const syncPendingTasks = useCallback(async () => {
     if (!navigator.onLine) return;
     const userId = getAuthUserId() || (await ensureAuthUserId());
     if (!userId) return;
@@ -222,7 +222,7 @@ const Tasks = () => {
     const updated = await getTasksByUser(userId);
     setTasks(sortTasks(updated));
     setSyncing(false);
-  };
+  }, []);
 
   const resetForm = () => {
     setEditingId(null);
@@ -287,13 +287,17 @@ const Tasks = () => {
   const fetchShareLinks = async (taskId) => {
     const token = getAuthToken();
     if (!token || !taskId) return;
-    const info = await fetchShareLinksApi({
-      resourceType: "task",
-      queryParams: { task_id: taskId },
-    });
-    if (info) {
-      setShareInfoByTask((prev) => ({ ...prev, [taskId]: info }));
     try {
+      const info = await fetchShareLinksApi({
+        resourceType: "task",
+        queryParams: { task_id: taskId },
+      });
+      if (info) {
+        setShareInfoByTask((prev) => ({ ...prev, [taskId]: info }));
+        return;
+      }
+
+      // Fallback to direct API call if helper isn't available
       const res = await authFetch(
         `${getApiBaseUrl()}/api/share/links/?resource_type=task&task_id=${taskId}`,
         { method: "GET" }
@@ -301,6 +305,7 @@ const Tasks = () => {
       const data = await safeJson(res);
       if (!res.ok) {
         console.warn("Failed to fetch share links for task:", taskId, res.status);
+        setShareInfoByTask((prev) => ({ ...prev, [taskId]: [] }));
         return;
       }
       setShareInfoByTask((prev) => ({
@@ -457,7 +462,7 @@ const Tasks = () => {
       await syncPendingTasks();
     };
     initialize();
-  }, []);
+  }, [loadApiTasks, syncPendingTasks]);
 
   useEffect(() => {
     const onAuthChange = async () => {
@@ -479,10 +484,10 @@ const Tasks = () => {
     };
     window.addEventListener("auth-changed", onAuthChange);
     return () => window.removeEventListener("auth-changed", onAuthChange);
-  }, []);
+  }, [loadApiTasks, syncPendingTasks]);
 
-  const syncTasksCb = useCallback(() => syncPendingTasks(), []);
-  const loadTasksCb = useCallback(() => loadApiTasks(), []);
+  const syncTasksCb = useCallback(() => syncPendingTasks(), [syncPendingTasks]);
+  const loadTasksCb = useCallback(() => loadApiTasks(), [loadApiTasks]);
   useOnlineSync({ syncFn: syncTasksCb, loadFn: loadTasksCb });
 
   useEffect(() => {

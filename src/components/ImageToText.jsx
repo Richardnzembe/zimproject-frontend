@@ -4,7 +4,7 @@ import Tesseract from "tesseract.js";
 const ImageToText = ({ onExtract, variant = "full", showStatus = true, className = "" }) => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState(0);
+  const [_progress, setProgress] = useState(0);
 
   const handleImage = async (e) => {
     const file = e.target.files[0];
@@ -29,7 +29,7 @@ const ImageToText = ({ onExtract, variant = "full", showStatus = true, className
 
       setStatus("Text extracted successfully!");
       onExtract(result.data.text);
-    } catch (err) {
+    } catch {
       setStatus("Failed to extract text. Please try again.");
     } finally {
       setLoading(false);
