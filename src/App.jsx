@@ -13,15 +13,23 @@ import NotificationsPage from "./components/NotificationsPage";
 import CookieBanner from "./components/CookieBanner";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
+import OpeningAnimation from "./components/OpeningAnimation";
 
 function App() {
   const [activeView, setActiveView] = useState("home");
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
   const [_authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
+  const [showOpening, setShowOpening] = useState(true);
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    // Hide the opening animation after a short delay
+    const t = setTimeout(() => setShowOpening(false), 1200);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -39,6 +47,17 @@ function App() {
     };
     window.addEventListener("auth-changed", onAuthChange);
     return () => window.removeEventListener("auth-changed", onAuthChange);
+  }, []);
+
+  useEffect(() => {
+    // Close the opening animation early if user interacts via keyboard or pointer
+    const dismiss = () => setShowOpening(false);
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismiss);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismiss);
+    };
   }, []);
 
   useEffect(() => {
@@ -62,6 +81,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      {showOpening && <OpeningAnimation /> }
       {activeView === "ai" ? (
         <Suspense fallback={<div className="loading">Loading AI chat…</div>}>
           <AIChat onNavigate={handleNavigate} />
