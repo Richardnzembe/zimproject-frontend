@@ -2561,6 +2561,20 @@ textarea {
   cursor: not-allowed;
 }
 
+.small-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.22);
+  border-top-color: rgba(255,255,255,0.95);
+  box-sizing: border-box;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .ai-composer-tools {
   max-width: 760px;
   margin: 8px auto 0;

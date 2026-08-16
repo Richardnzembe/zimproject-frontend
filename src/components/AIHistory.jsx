@@ -177,6 +177,17 @@ const AIHistory = () => {
     return () => window.removeEventListener("auth-changed", onAuthChange);
   }, []);
 
+  // Refresh history when other parts of the app report changes
+  useEffect(() => {
+    const onHistoryChanged = () => {
+      if (authToken) {
+        fetchHistory();
+      }
+    };
+    window.addEventListener("history-changed", onHistoryChanged);
+    return () => window.removeEventListener("history-changed", onHistoryChanged);
+  }, [authToken, fetchHistory]);
+
   useEffect(() => {
     if (authToken) {
       setTimeout(() => {

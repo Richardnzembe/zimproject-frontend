@@ -323,6 +323,15 @@ export default function AIChat({ onNavigate }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Broadcast when chat sessions change so other UI (history, lists) can refresh automatically
+  useEffect(() => {
+    try {
+      window.dispatchEvent(new Event("chat-sessions-changed"));
+    } catch (e) {
+      // ignore
+    }
+  }, [chatSessions]);
+
   // Auto-resize input as content grows
   useAutoResize(inputRef, input);
   useEffect(() => {
@@ -505,6 +514,7 @@ export default function AIChat({ onNavigate }) {
             input_data: { ...(item.input_data || {}), session_id: currentSessionId },
           }));
           await upsertHistoryItems(migrated);
+          try { window.dispatchEvent(new Event("history-changed")); } catch(e) {}
           setChatSessions((prev) =>
             prev.map((s) =>
               s.id === currentSessionId
@@ -634,6 +644,7 @@ export default function AIChat({ onNavigate }) {
 
         if (userId) {
           await upsertHistoryItems([{ ...historyItem, user_id: userId }]);
+        try { window.dispatchEvent(new Event("history-changed")); } catch(e) {}
         }
       }
     } catch (err) {
@@ -698,6 +709,7 @@ export default function AIChat({ onNavigate }) {
     const session = chatSessions.find((s) => s.id === sessionId);
     if (session?.items?.length) {
       await deleteHistoryItems(session.items.map((item) => item.local_id));
+      try { window.dispatchEvent(new Event("history-changed")); } catch(e) {}
 
       const token = getAuthToken();
       if (token) {
@@ -1232,11 +1244,13 @@ export default function AIChat({ onNavigate }) {
                 )}
               </div>
               <button
+                type="button"
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
+                aria-busy={loading}
                 className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
               >
-                <SendIcon />
+                {loading ? <span className="small-spinner" aria-hidden="true"></span> : <SendIcon />}
               </button>
             </div>
           </div>
