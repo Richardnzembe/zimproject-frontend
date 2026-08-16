@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
 import DOMPurify from "dompurify";
-import ImageToText from "./ImageToText";
+const ImageToText = lazy(() => import("./ImageToText"));
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch } from "../lib/api";
 import {
   getNotesByUser,
@@ -957,7 +957,9 @@ const Notes = ({ onOpenAI }) => {
             </button>
           )}
           
-          <ImageToText onExtract={insertExtractedText} />
+          <Suspense fallback={null}>
+            <ImageToText onExtract={insertExtractedText} />
+          </Suspense>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import Notes from "./components/Notes";
 import Tasks from "./components/Tasks";
-import AIChat from "./components/AIChat";
+const AIChat = lazy(() => import("./components/AIChat"));
 import AuthPanel from "./components/AuthPanel";
 import Navigation from "./components/Navigation";
 import Home from "./components/Home";
@@ -63,7 +63,9 @@ function App() {
   return (
     <div className="app-shell">
       {activeView === "ai" ? (
-        <AIChat onNavigate={handleNavigate} />
+        <Suspense fallback={<div className="loading">Loading AI chat…</div>}>
+          <AIChat onNavigate={handleNavigate} />
+        </Suspense>
       ) : activeView === "share" && shareToken ? (
         <SharedAccess token={shareToken} onNavigate={handleNavigate} />
       ) : (

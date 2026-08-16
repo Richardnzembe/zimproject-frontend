@@ -930,6 +930,8 @@ export default function AIChat({ onNavigate }) {
             <button
               className="ai-header-toggle"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              type="button"
             >
               {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
             </button>
@@ -1010,6 +1012,7 @@ export default function AIChat({ onNavigate }) {
           <button
             className="ai-header-restore"
             type="button"
+            aria-label="Show top bar"
             onClick={() => {
               setHeaderVisible(true);
               localStorage.setItem(AI_HEADER_VISIBILITY_STORAGE, "true");
