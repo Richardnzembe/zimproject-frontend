@@ -1245,7 +1245,7 @@ export default function AIChat({ onNavigate }) {
               </div>
               <button
                 type="button"
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={loading || !input.trim()}
                 aria-busy={loading}
                 className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
