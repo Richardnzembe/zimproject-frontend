@@ -37,7 +37,9 @@ function App() {
       const token = getAuthToken();
       setAuthToken((prev) => {
         if (!prev && token) {
-          setActiveView("home");
+          // Keep recipients on the shared item after they sign in from a
+          // collaboration link, so they can accept the invite immediately.
+          setActiveView(shareToken ? "share" : "home");
         }
         if (prev && !token) {
           setActiveView("home");
@@ -47,7 +49,7 @@ function App() {
     };
     window.addEventListener("auth-changed", onAuthChange);
     return () => window.removeEventListener("auth-changed", onAuthChange);
-  }, []);
+  }, [shareToken]);
 
   useEffect(() => {
     // Close the opening animation early if user interacts via keyboard or pointer

@@ -11,6 +11,7 @@ const RESOURCE_LABELS = {
 
 export default function ShareControlPanel() {
   const [shares, setShares] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -25,13 +26,20 @@ export default function ShareControlPanel() {
     setLoading(true);
     setStatus("");
     try {
-      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/`, { method: "GET" });
-      const data = await safeJson(res);
-      if (!res.ok) {
-        setStatus(data?.detail || "Unable to load shares.");
+      const [sharesRes, invitesRes] = await Promise.all([
+        authFetch(`${getApiBaseUrl()}/api/share/links/?include_received=1`, { method: "GET" }),
+        authFetch(`${getApiBaseUrl()}/api/share/invites/`, { method: "GET" }),
+      ]);
+      const [sharesData, invitesData] = await Promise.all([
+        safeJson(sharesRes),
+        safeJson(invitesRes),
+      ]);
+      if (!sharesRes.ok) {
+        setStatus(sharesData?.detail || "Unable to load shares.");
         return;
       }
-      setShares(Array.isArray(data) ? data : []);
+      setShares(Array.isArray(sharesData) ? sharesData : []);
+      setInvites(invitesRes.ok && Array.isArray(invitesData) ? invitesData : []);
     } catch {
       setStatus("Unable to load shares.");
     } finally {
@@ -39,8 +47,33 @@ export default function ShareControlPanel() {
     }
   };
 
+  const respondToInvite = async (inviteId, action, shareToken = null) => {
+    setStatus("");
+    try {
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/invites/${inviteId}/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await safeJson(res);
+      if (!res.ok) {
+        setStatus(data?.detail || `Unable to ${action} invite.`);
+        return;
+      }
+      flashStatus(setStatus, action === "accept" ? "Share accepted." : "Invite declined.");
+      if (action === "accept" && shareToken) {
+        window.location.assign(buildShareUrl(shareToken));
+        return;
+      }
+      await loadShares();
+    } catch {
+      setStatus(`Unable to ${action} invite.`);
+    }
+  };
+
   useEffect(() => {
-    loadShares();
+    const timer = window.setTimeout(() => loadShares(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const copyShareUrl = async (shareToken) => {
@@ -118,7 +151,31 @@ export default function ShareControlPanel() {
 
       {status && <p className="status-message info">{status}</p>}
 
-      {visibleShares.length === 0 ? (
+      {invites.length > 0 && (
+        <div className="notes-list" style={{ marginBottom: "20px" }}>
+          <h3 className="empty-state-title">Pending invitations</h3>
+          {invites.map((invite) => (
+            <div key={invite.id} className="note-card">
+              <div className="note-card-header">
+                <h3 className="note-card-title">
+                  {RESOURCE_LABELS[invite.share?.resource_type] || "Shared item"}
+                </h3>
+                <span className="tag">From {invite.invited_by?.username || "another user"}</span>
+              </div>
+              <div className="note-card-actions" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                <button onClick={() => respondToInvite(invite.id, "accept", invite.share?.token)}>
+                  Accept and open
+                </button>
+                <button className="button-secondary" onClick={() => respondToInvite(invite.id, "decline")}>
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {visibleShares.length === 0 && invites.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">Shares</div>
           <h3 className="empty-state-title">No share links found</h3>
@@ -145,6 +202,12 @@ export default function ShareControlPanel() {
                 </span>
               </div>
 
+              {!share.is_owner && (
+                <div className="note-card-meta">
+                  <span>Shared with you by {share.owner?.username || "another user"}</span>
+                </div>
+              )}
+
               <div className="note-card-meta">
                 <span>Created {new Date(share.created_at).toLocaleString()}</span>
                 {share.resource_type === "note" && share.note && <span>- Note #{share.note}</span>}
@@ -165,7 +228,7 @@ export default function ShareControlPanel() {
                       style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
                       {member.user?.username}
-                      {member.user?.id && (
+                      {share.is_owner !== false && member.user?.id && (
                         <button
                           className="button-secondary"
                           style={{ padding: "2px 6px", fontSize: "0.75rem" }}
@@ -180,15 +243,22 @@ export default function ShareControlPanel() {
               )}
 
               <div className="note-card-actions" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                <button onClick={() => window.location.assign(buildShareUrl(share.token))}>
+                  Open
+                </button>
                 <button className="button-secondary" onClick={() => copyShareUrl(share.token)}>
                   Copy Link
                 </button>
-                <button className="button-secondary" onClick={() => inviteUser(share.token)}>
-                  Add User
-                </button>
-                <button className="button-danger" onClick={() => revokeShare(share.token)}>
-                  Revoke Link
-                </button>
+                {share.is_owner !== false && (
+                  <>
+                    <button className="button-secondary" onClick={() => inviteUser(share.token)}>
+                      Add User
+                    </button>
+                    <button className="button-danger" onClick={() => revokeShare(share.token)}>
+                      Revoke Link
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

@@ -34,9 +34,7 @@ export default function SharedAccess({ token, onNavigate }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/share/links/${token}/`, {
-        credentials: "include",
-      });
+      const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/`);
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         if (res.status === 401) {
@@ -82,7 +80,8 @@ export default function SharedAccess({ token, onNavigate }) {
   }, [token]);
 
   useEffect(() => {
-    fetchShare();
+    const timer = window.setTimeout(() => fetchShare(), 0);
+    return () => window.clearTimeout(timer);
   }, [token, fetchShare]);
 
   const displayMembers = useMemo(() => {

@@ -202,7 +202,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         }
         if (isActive) {
           setTimeout(() => {
-            setDisplayUsername(data?.username || "");
+            setDisplayUsername(data?.display_name || data?.username || "");
             setProfileId(data?.id || null);
           }, 0);
         }
@@ -273,12 +273,17 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
 
       container.innerHTML = "";
       google.accounts.id.renderButton(container, {
-        theme: "outline",
+        type: "standard",
+        theme: "filled_blue",
         size: "large",
         text: mode === "register" ? "signup_with" : "continue_with",
-        shape: "rectangular",
+        shape: "pill",
         logo_alignment: "left",
-        width: Math.min(360, window.innerWidth - 64),
+        width: Math.min(260, window.innerWidth - 80),
+        click_listener: () => {
+          setStatus("");
+          setStatusType("");
+        },
       });
     };
 
@@ -969,14 +974,16 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   </>
                 )}
               </div>
-              {googleClientId && (
-                <>
-                  <div className="auth-divider">or</div>
-                  <div className="auth-google">
-                    <div ref={googleButtonRef} />
-                  </div>
-                </>
-              )}
+              <div className="auth-divider">or</div>
+              <div className="auth-google" aria-label="Continue with Google">
+                {googleClientId ? (
+                  <div ref={googleButtonRef} />
+                ) : (
+                  <button className="button-secondary" type="button" disabled>
+                    Continue with Google
+                  </button>
+                )}
+              </div>
             </>
           )}
         </>

@@ -19,7 +19,7 @@ export default function Navigation({ activeView, onViewChange }) {
         const res = await authFetch(`${getApiBaseUrl()}/api/auth/me/`);
         const data = await res.json().catch(() => null);
         if (active && res.ok) {
-          setUsername(data?.username || "");
+          setUsername(data?.display_name || data?.username || "");
         }
       } catch {
         // ignore
@@ -77,7 +77,7 @@ export default function Navigation({ activeView, onViewChange }) {
           type="button"
           aria-expanded={accountOpen}
         >
-          {token && username ? `@${username}` : "Account"}
+          {token && username ? username : "Account"}
         </button>
         {token && accountOpen && (
           <div className="top-nav-dropdown">
