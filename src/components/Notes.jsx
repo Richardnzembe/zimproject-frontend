@@ -14,6 +14,7 @@ import { USER_OPENROUTER_MODEL_STORAGE, FREE_OPENROUTER_MODELS } from "../lib/co
 import { safeJson, flashStatus } from "../lib/utils";
 import { inviteUserToShare as inviteUserApi, removeMemberFromShare as removeMemberApi, revokeShareLink as revokeShareApi, fetchShareLinks as fetchShareLinksApi, createShareLink as createShareLinkApi } from "../lib/sharing";
 import { useOnlineSync } from "../lib/hooks";
+import LiveThrottleMessage from "./LiveThrottleMessage";
 
 const hasHtmlTags = (value) => /<[^>]+>/.test(value || "");
 
@@ -42,6 +43,7 @@ const Notes = ({ onOpenAI }) => {
   const [aiLoading, setAILoading] = useState(false);
   const [aiNoteId, setAINoteId] = useState(null);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfo, setShareInfo] = useState([]);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
@@ -636,24 +638,31 @@ const Notes = ({ onOpenAI }) => {
 
     const target = notes.find((note) => note.local_id === localId);
     if (!target) return;
+    setDeletingId(localId);
+    setStatus("Deleting note...");
+    try {
+      if (target.server_id) {
+        await upsertNotes([
+          {
+            ...target,
+            sync_status: "pending",
+            pending_action: "delete",
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        await deleteLocalNote(localId);
+      }
 
-    if (target.server_id) {
-      await upsertNotes([
-        {
-          ...target,
-          sync_status: "pending",
-          pending_action: "delete",
-          updated_at: new Date().toISOString(),
-        },
-      ]);
-    } else {
-      await deleteLocalNote(localId);
+      const updated = await getNotesByUser(userId);
+      setNotes(sortNotes(updated));
+      await syncPendingNotes();
+      flashStatus(setStatus, "Note deleted successfully.");
+    } catch {
+      setStatus("Unable to delete the note. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
-
-    const updated = await getNotesByUser(userId);
-    setNotes(sortNotes(updated));
-
-    await syncPendingNotes();
   };
 
   const askAI = async (action, note) => {
@@ -1048,13 +1057,14 @@ const Notes = ({ onOpenAI }) => {
                         <>
                           <button
                             className="dropdown-item danger"
-                            onClick={() => {
-                              deleteNote(note.local_id);
+                            onClick={async () => {
+                              await deleteNote(note.local_id);
                               setDeleteConfirmNote(null);
                               setOpenActionMenuId(null);
                             }}
+                            disabled={deletingId === note.local_id}
                           >
-                            Confirm delete
+                            {deletingId === note.local_id ? <><span className="small-spinner" aria-hidden="true" /> Deleting...</> : "Confirm delete"}
                           </button>
                           <button
                             className="dropdown-item"
@@ -1166,13 +1176,14 @@ const Notes = ({ onOpenAI }) => {
                   <>
                     <button
                       className="notes-reading-btn danger"
-                      onClick={() => {
-                        deleteNote(activeNote.local_id);
+                      onClick={async () => {
+                        await deleteNote(activeNote.local_id);
                         setDeleteConfirmNote(null);
                         setActiveNote(null);
                       }}
+                      disabled={deletingId === activeNote.local_id}
                     >
-                      Confirm Delete
+                      {deletingId === activeNote.local_id ? <><span className="small-spinner" aria-hidden="true" /> Deleting...</> : "Confirm Delete"}
                     </button>
                     <button
                       className="notes-reading-btn"
@@ -1296,7 +1307,7 @@ const Notes = ({ onOpenAI }) => {
                     </div>
                   ) : aiResult ? (
                     <div className="notes-ai-response-text">
-                      {aiResult}
+                      <LiveThrottleMessage message={aiResult} />
                     </div>
                   ) : null}
                 </div>

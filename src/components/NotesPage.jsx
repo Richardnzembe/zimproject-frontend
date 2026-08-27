@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import LiveThrottleMessage from "./LiveThrottleMessage";
 import AIModeButtons from "../components/AIModeButtons";
 import NoteCard from "../components/NoteCard";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -122,7 +123,7 @@ export default function NotesPage() {
       {aiResult && (
         <div style={{ margin: "20px 0", padding: "10px", border: "1px solid #3498db", backgroundColor: "#f0f8ff" }}>
           <h3>AI Result:</h3>
-          <pre>{aiResult}</pre>
+          <pre><LiveThrottleMessage message={aiResult} /></pre>
         </div>
       )}
 

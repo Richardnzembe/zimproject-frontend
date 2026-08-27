@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense } from "react";
+import React, { useEffect, useRef, useState, lazy, Suspense } from "react";
 import Notes from "./components/Notes";
 import Tasks from "./components/Tasks";
 const AIChat = lazy(() => import("./components/AIChat"));
@@ -21,9 +21,45 @@ function App() {
   const [_authToken, setAuthToken] = useState(getAuthToken());
   const [shareToken, setShareToken] = useState(null);
   const [showOpening, setShowOpening] = useState(true);
+  const [networkActivity, setNetworkActivity] = useState({ visible: false, label: "Loading..." });
+  const activeRequestsRef = useRef(0);
+  const activityTimerRef = useRef(null);
 
   useEffect(() => {
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    const onStart = (event) => {
+      activeRequestsRef.current += 1;
+      const label = event.detail?.label || "Working...";
+      setNetworkActivity((current) => ({ ...current, label }));
+      if (!activityTimerRef.current) {
+        activityTimerRef.current = window.setTimeout(() => {
+          activityTimerRef.current = null;
+          if (activeRequestsRef.current > 0) {
+            setNetworkActivity((current) => ({ ...current, visible: true }));
+          }
+        }, 160);
+      }
+    };
+    const onEnd = () => {
+      activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1);
+      if (activeRequestsRef.current === 0) {
+        if (activityTimerRef.current) {
+          window.clearTimeout(activityTimerRef.current);
+          activityTimerRef.current = null;
+        }
+        setNetworkActivity((current) => ({ ...current, visible: false }));
+      }
+    };
+    window.addEventListener("app-network-start", onStart);
+    window.addEventListener("app-network-end", onEnd);
+    return () => {
+      window.removeEventListener("app-network-start", onStart);
+      window.removeEventListener("app-network-end", onEnd);
+      if (activityTimerRef.current) window.clearTimeout(activityTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -84,6 +120,15 @@ function App() {
   return (
     <div className="app-shell">
       {showOpening && <OpeningAnimation /> }
+      <div
+        className={`global-activity ${networkActivity.visible ? "visible" : ""}`}
+        role="status"
+        aria-live="polite"
+        aria-hidden={!networkActivity.visible}
+      >
+        <span className="global-activity-spinner" aria-hidden="true" />
+        <span>{networkActivity.label}</span>
+      </div>
       {activeView === "ai" ? (
         <Suspense fallback={<div className="loading">Loading AI chat…</div>}>
           <AIChat onNavigate={handleNavigate} />

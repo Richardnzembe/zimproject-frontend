@@ -9,7 +9,7 @@ import { createShareLink as createShareLinkApi, inviteUserToShare as inviteUserA
 import { useClickOutside, useAutoResize } from "../lib/hooks";
 import ImageToText from "./ImageToText";
 import ThemeToggle from "./ThemeToggle";
-
+import { getThrottleSeconds } from "../lib/throttle";
 
 export default function AIChat({ onNavigate }) {
   const [authToken, setAuthToken] = useState(getAuthToken());
@@ -42,6 +42,8 @@ export default function AIChat({ onNavigate }) {
   const currentMembers = currentShare?.members || [];
   const [lastFailedInput, setLastFailedInput] = useState(null);
   const [lastFailedMode, setLastFailedMode] = useState(null);
+  const [throttleUntil, setThrottleUntil] = useState(0);
+  const [throttleRemaining, setThrottleRemaining] = useState(0);
   const [selectedModel, setSelectedModel] = useState(() => {
     const stored = (getUserOpenRouterModel() || "").trim();
     return stored || "auto";
@@ -50,6 +52,17 @@ export default function AIChat({ onNavigate }) {
   const inputRef = useRef(null);
   const headerMenuRef = useRef(null);
   const modeMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!throttleUntil) return undefined;
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((throttleUntil - Date.now()) / 1000));
+      setThrottleRemaining(remaining);
+      if (remaining === 0) setThrottleUntil(0);
+    };
+    const intervalId = window.setInterval(updateCountdown, 250);
+    return () => window.clearInterval(intervalId);
+  }, [throttleUntil]);
 
   function getWelcomeMessage() {
     return {
@@ -451,7 +464,7 @@ export default function AIChat({ onNavigate }) {
 
   const sendMessage = async (retryText = null) => {
     const messageText = retryText || input;
-    if (!messageText.trim() || loading) return;
+    if (!messageText.trim() || loading || throttleRemaining > 0) return;
 
     const token = getAuthToken();
     if (!token) {
@@ -484,7 +497,7 @@ export default function AIChat({ onNavigate }) {
     setLastFailedInput(null);
     setLastFailedMode(null);
 
-    const addErrorMessage = (content, retryable = false) => {
+    const addErrorMessage = (content, retryable = false, metadata = {}) => {
       if (retryable) {
         setLastFailedInput(messageToSend);
         setLastFailedMode(mode);
@@ -498,6 +511,7 @@ export default function AIChat({ onNavigate }) {
           timestamp: new Date().toISOString(),
           isError: true,
           retryable,
+          ...metadata,
         },
       ]);
     };
@@ -584,7 +598,14 @@ export default function AIChat({ onNavigate }) {
         if (data?.request_message) {
           setModelStatus(data.request_message);
         }
-        addErrorMessage(errorMessage, retryable);
+        if (res.status === 429) {
+          const seconds = getThrottleSeconds(res, data);
+          setThrottleUntil(Date.now() + seconds * 1000);
+          setThrottleRemaining(seconds);
+          addErrorMessage(errorMessage, true, { isThrottle: true });
+        } else {
+          addErrorMessage(errorMessage, retryable);
+        }
       } else if (!data) {
         addErrorMessage("Received an empty response from the server. Please try again.", true);
         const errorMessage = formatAiError(res.status, data);
@@ -673,6 +694,7 @@ export default function AIChat({ onNavigate }) {
   };
 
   const retryLastMessage = (failedInput) => {
+    if (throttleRemaining > 0) return;
     if (typeof failedInput === "string") {
       setMessages((prev) => prev.filter((m) => !(m.isError && m.failedInput === failedInput)));
       setInput(failedInput);
@@ -1149,18 +1171,24 @@ export default function AIChat({ onNavigate }) {
                       {message.role === "user" ? (message.senderName || "You") : message.isError ? "Error" : "NotesAI-RNA AI"}
                     </div>
                     <div className="chat-message-text">
-                      {message.isError ? message.content : message.role === "assistant" ? renderMessageContent(message.content) : message.content}
+                      {message.isThrottle ? (
+                        <span className={`throttle-countdown ${throttleRemaining === 0 ? "ready" : ""}`} role="timer" aria-live="polite">
+                          {throttleRemaining > 0
+                            ? <>Too many requests. You can try again in <strong>{throttleRemaining}</strong> second{throttleRemaining === 1 ? "" : "s"}.</>
+                            : <>The wait is over. You can try again now.</>}
+                        </span>
+                      ) : message.isError ? message.content : message.role === "assistant" ? renderMessageContent(message.content) : message.content}
                     </div>
                     {message.role === "assistant" && message.isError && (
                       <div className="ai-message-actions" style={{ opacity: 1 }}>
                         {message.retryable && (
-                          <button onClick={retryLastMessage} className="ai-retry-button" disabled={loading}>
-                            <RetryIcon /> Retry
+                          <button onClick={retryLastMessage} className="ai-retry-button" disabled={loading || throttleRemaining > 0}>
+                            <RetryIcon /> {message.isThrottle && throttleRemaining > 0 ? `Wait ${throttleRemaining}s` : "Retry"}
                           </button>
                         )}
                         {message.isError && message.failedInput && (
                           <div className="ai-message-actions">
-                            <button onClick={() => retryLastMessage(message.failedInput)} className="ai-retry-button" disabled={loading}>
+                            <button onClick={() => retryLastMessage(message.failedInput)} className="ai-retry-button" disabled={loading || throttleRemaining > 0}>
                               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                                 <polyline points="23 4 23 10 17 10"></polyline>
                                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -1210,7 +1238,7 @@ export default function AIChat({ onNavigate }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask NotesAI-RNA AI..."
+              placeholder={throttleRemaining > 0 ? `You can send again in ${throttleRemaining}s...` : "Ask NotesAI-RNA AI..."}
               rows={1}
             />
             <div className="ai-composer-actions" ref={modeMenuRef}>
@@ -1246,9 +1274,9 @@ export default function AIChat({ onNavigate }) {
               <button
                 type="button"
                 onClick={() => sendMessage()}
-                disabled={loading || !input.trim()}
+                disabled={loading || throttleRemaining > 0 || !input.trim()}
                 aria-busy={loading}
-                className={`ai-send-button ${input.trim() && !loading ? "active" : "disabled"}`}
+                className={`ai-send-button ${input.trim() && !loading && throttleRemaining === 0 ? "active" : "disabled"}`}
               >
                 {loading ? <span className="small-spinner" aria-hidden="true"></span> : <SendIcon />}
               </button>

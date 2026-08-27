@@ -11,6 +11,21 @@ let refreshPromise = null;
 let userIdentityPromise = null;
 let csrfTokenCache = "";
 
+function describeRequest(url, method) {
+  if (method === "DELETE" || url.includes("/delete")) return "Deleting...";
+  if (url.includes("/chat/") || url.includes("/ai/")) return "Thinking...";
+  if (method === "POST" && url.includes("/invite")) return "Sending invite...";
+  if (method === "POST") return "Processing...";
+  if (method === "PUT" || method === "PATCH") return "Saving...";
+  return "Loading...";
+}
+
+function dispatchNetworkActivity(type, detail = {}) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(type, { detail }));
+  }
+}
+
 function normalizeApiBaseUrl(url) {
   return url.replace(/\/+$/, "");
 }
@@ -303,48 +318,53 @@ export async function refreshAccessToken() {
 
 export async function authFetch(url, options = {}) {
   const method = (options.method || "GET").toUpperCase();
-  const includeAiHeaders = url.includes("/api/ai/");
-  const headers = {
-    ...(options.headers || {}),
-    ...(includeAiHeaders ? getUserAiHeaders() : {}),
-  };
+  dispatchNetworkActivity("app-network-start", { label: describeRequest(url, method) });
+  try {
+    const includeAiHeaders = url.includes("/api/ai/");
+    const headers = {
+      ...(options.headers || {}),
+      ...(includeAiHeaders ? getUserAiHeaders() : {}),
+    };
 
-  if (isUnsafeMethod(method)) {
-    const csrf = await ensureCsrfToken();
-    if (csrf) headers["X-CSRFToken"] = csrf;
+    if (isUnsafeMethod(method)) {
+      const csrf = await ensureCsrfToken();
+      if (csrf) headers["X-CSRFToken"] = csrf;
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      method,
+      headers,
+      credentials: options.credentials || "include",
+    });
+
+    if (response.ok && isAuthenticated && !getAuthUserId()) {
+      await ensureUserIdentity(false);
+    }
+
+    if (response.status !== 401) return response;
+
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) return response;
+
+    const retryHeaders = {
+      ...(options.headers || {}),
+      ...(includeAiHeaders ? getUserAiHeaders() : {}),
+    };
+    if (isUnsafeMethod(method)) {
+      const csrf = getCookie("csrftoken") || (await ensureCsrfToken());
+      if (csrf) retryHeaders["X-CSRFToken"] = csrf;
+    }
+
+    return fetch(url, {
+      ...options,
+      method,
+      headers: retryHeaders,
+      credentials: options.credentials || "include",
+    });
+  } finally {
+    dispatchNetworkActivity("app-network-end");
   }
-
-  const response = await fetch(url, {
-    ...options,
-    method,
-    headers,
-    credentials: options.credentials || "include",
-  });
-
-  if (response.ok && isAuthenticated && !getAuthUserId()) {
-    await ensureUserIdentity(false);
-  }
-
-  if (response.status !== 401) return response;
-
-  const refreshed = await refreshAccessToken();
-  if (!refreshed) return response;
-
-  const retryHeaders = {
-    ...(options.headers || {}),
-    ...(includeAiHeaders ? getUserAiHeaders() : {}),
-  };
-  if (isUnsafeMethod(method)) {
-    const csrf = getCookie("csrftoken") || (await ensureCsrfToken());
-    if (csrf) retryHeaders["X-CSRFToken"] = csrf;
-  }
-
-  return fetch(url, {
-    ...options,
-    method,
-    headers: retryHeaders,
-    credentials: options.credentials || "include",
-  });
 }
 
 export async function initializeAuth() {

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId } from "../lib/api";
 import { renderMessageContent } from "../lib/chatFormatting";
 import { BackIcon } from "../lib/icons";
+import LiveThrottleMessage from "./LiveThrottleMessage";
 
 export default function SharedAccess({ token, onNavigate }) {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,8 @@ export default function SharedAccess({ token, onNavigate }) {
   const [inviteId, setInviteId] = useState(null);
   const [input, setInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState("");
+  const [activeAction, setActiveAction] = useState("");
   const [noteDraft, setNoteDraft] = useState(null);
   const [taskDraft, setTaskDraft] = useState(null);
   const isAuthed = !!getAuthToken();
@@ -92,6 +95,8 @@ export default function SharedAccess({ token, onNavigate }) {
   const handleSend = async () => {
     if (!input.trim() || !canCollaborate) return;
     setSaving(true);
+    setActiveAction("send");
+    setFeedback("");
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/chat/`, {
         method: "POST",
@@ -102,6 +107,7 @@ export default function SharedAccess({ token, onNavigate }) {
       if (res.ok) {
         setInput("");
         await fetchShare();
+        setFeedback("Message sent successfully.");
       } else {
         setError(data?.detail || "Unable to send message.");
       }
@@ -109,12 +115,15 @@ export default function SharedAccess({ token, onNavigate }) {
       setError("Unable to send message.");
     } finally {
       setSaving(false);
+      setActiveAction("");
     }
   };
 
   const handleSaveNote = async () => {
     if (!noteDraft || !canCollaborate) return;
     setSaving(true);
+    setActiveAction("save-note");
+    setFeedback("");
     setError("");
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/note/`, {
@@ -128,15 +137,20 @@ export default function SharedAccess({ token, onNavigate }) {
         return;
       }
       setNote(data.note || noteDraft);
+      setNoteDraft(data.note || noteDraft);
+      setFeedback("Note saved successfully.");
     } catch {
       setError("Unable to update note.");
     } finally {
       setSaving(false);
+      setActiveAction("");
     }
   };
 
   const handleInviteAction = async (action) => {
     if (!inviteId) return;
+    setSaving(true);
+    setActiveAction(`invite-${action}`);
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/invites/${inviteId}/`, {
         method: "POST",
@@ -152,12 +166,17 @@ export default function SharedAccess({ token, onNavigate }) {
       }
     } catch {
       setError(`Failed to ${action} invite. Please try again.`);
+    } finally {
+      setSaving(false);
+      setActiveAction("");
     }
   };
 
   const handleSaveTask = async () => {
     if (!taskDraft || !canCollaborate) return;
     setSaving(true);
+    setActiveAction("save-task");
+    setFeedback("");
     setError("");
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/task/`, {
@@ -172,34 +191,44 @@ export default function SharedAccess({ token, onNavigate }) {
       }
       setTask(data.task || taskDraft);
       setTaskDraft(data.task || taskDraft);
+      setFeedback("Task saved successfully.");
     } catch {
       setError("Unable to update task.");
     } finally {
       setSaving(false);
+      setActiveAction("");
     }
   };
 
   const handleRemoveMember = async (memberId) => {
     if (!isOwner) return;
+    setSaving(true);
+    setActiveAction(`remove-${memberId}`);
+    setFeedback("");
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/links/${token}/members/${memberId}/`, {
         method: "DELETE",
       });
       if (res.ok) {
         setMembers((prev) => prev.filter((m) => m.user?.id !== memberId));
+        setFeedback("Collaborator removed.");
       } else {
         const data = await res.json().catch(() => null);
         setError(data?.detail || "Unable to remove member.");
       }
     } catch {
       setError("Unable to remove member. Please try again.");
+    } finally {
+      setSaving(false);
+      setActiveAction("");
     }
   };
 
   if (loading) {
     return (
-      <div className="panel-card" style={{ marginTop: "32px" }}>
-        Loading shared content...
+      <div className="panel-card shared-loading-state" style={{ marginTop: "32px" }} role="status">
+        <span className="loading-spinner" aria-hidden="true"><span className="spinner" /></span>
+        <strong>Loading shared content...</strong>
       </div>
     );
   }
@@ -207,7 +236,7 @@ export default function SharedAccess({ token, onNavigate }) {
   if (error) {
     return (
       <div className="panel-card" style={{ marginTop: "32px" }}>
-        <p>{error}</p>
+        <p><LiveThrottleMessage message={error} /></p>
         {error.includes("login") && (
           <button className="button-secondary" onClick={() => onNavigate("account")}>
             Login
@@ -215,9 +244,11 @@ export default function SharedAccess({ token, onNavigate }) {
         )}
         {permission === "invite" && inviteId && (
           <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-            <button onClick={() => handleInviteAction("accept")}>Accept Invite</button>
-            <button className="button-secondary" onClick={() => handleInviteAction("decline")}>
-              Decline
+            <button onClick={() => handleInviteAction("accept")} disabled={saving}>
+              {activeAction === "invite-accept" ? "Accepting..." : "Accept Invite"}
+            </button>
+            <button className="button-secondary" onClick={() => handleInviteAction("decline")} disabled={saving}>
+              {activeAction === "invite-decline" ? "Declining..." : "Decline"}
             </button>
           </div>
         )}
@@ -227,6 +258,7 @@ export default function SharedAccess({ token, onNavigate }) {
 
   return (
     <div className="panel-card" style={{ marginTop: "32px" }}>
+      {feedback && <p className="status-message success" role="status">{feedback}</p>}
       <div className="panel-header" style={{ alignItems: "flex-start" }}>
         <div>
           <button className="button-secondary" onClick={() => onNavigate("home")}>
@@ -253,6 +285,7 @@ export default function SharedAccess({ token, onNavigate }) {
                   {isOwner && member.user?.id && (
                     <button
                       onClick={() => handleRemoveMember(member.user.id)}
+                      disabled={saving}
                       style={{
                         marginLeft: "4px",
                         border: "none",
@@ -262,7 +295,7 @@ export default function SharedAccess({ token, onNavigate }) {
                       }}
                       title="Remove"
                     >
-                      x
+                      {activeAction === `remove-${member.user.id}` ? "..." : "x"}
                     </button>
                   )}
                 </span>
@@ -304,12 +337,14 @@ export default function SharedAccess({ token, onNavigate }) {
                 className="chat-input"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                disabled={saving}
                 placeholder="Add a message..."
                 rows={2}
                 style={{ width: "100%", marginBottom: "12px" }}
               />
               <button onClick={handleSend} disabled={saving || !input.trim()}>
-                Send
+                {activeAction === "send" && <span className="small-spinner" aria-hidden="true" />}
+                {activeAction === "send" ? " Sending..." : "Send"}
               </button>
             </div>
           )}
@@ -342,7 +377,8 @@ export default function SharedAccess({ token, onNavigate }) {
               )}
               {canCollaborate && (
                 <button onClick={handleSaveNote} disabled={saving}>
-                  Save Changes
+                  {activeAction === "save-note" && <span className="small-spinner" aria-hidden="true" />}
+                  {activeAction === "save-note" ? " Saving..." : "Save Changes"}
                 </button>
               )}
             </div>
@@ -407,7 +443,8 @@ export default function SharedAccess({ token, onNavigate }) {
               )}
               {canCollaborate && (
                 <button onClick={handleSaveTask} disabled={saving}>
-                  Save Changes
+                  {activeAction === "save-task" && <span className="small-spinner" aria-hidden="true" />}
+                  {activeAction === "save-task" ? " Saving..." : "Save Changes"}
                 </button>
               )}
             </div>

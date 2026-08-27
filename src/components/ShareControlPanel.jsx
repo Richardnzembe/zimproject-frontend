@@ -14,6 +14,7 @@ export default function ShareControlPanel() {
   const [invites, setInvites] = useState([]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [actionKey, setActionKey] = useState("");
   const [filter, setFilter] = useState("all");
 
   const loadShares = async () => {
@@ -49,6 +50,7 @@ export default function ShareControlPanel() {
 
   const respondToInvite = async (inviteId, action, shareToken = null) => {
     setStatus("");
+    setActionKey(`invite-${inviteId}-${action}`);
     try {
       const res = await authFetch(`${getApiBaseUrl()}/api/share/invites/${inviteId}/`, {
         method: "POST",
@@ -68,6 +70,8 @@ export default function ShareControlPanel() {
       await loadShares();
     } catch {
       setStatus(`Unable to ${action} invite.`);
+    } finally {
+      setActionKey("");
     }
   };
 
@@ -86,41 +90,56 @@ export default function ShareControlPanel() {
   };
 
   const inviteUser = async (shareToken) => {
-    const result = await inviteUserApi(shareToken);
-    if (result.error) {
-      setStatus(result.error);
-      return;
-    }
-    if (result.success) {
-      flashStatus(setStatus, "Invite sent.");
-      await loadShares();
+    setActionKey(`invite-user-${shareToken}`);
+    try {
+      const result = await inviteUserApi(shareToken);
+      if (result.error) {
+        setStatus(result.error);
+        return;
+      }
+      if (result.success) {
+        flashStatus(setStatus, "Invite sent.");
+        await loadShares();
+      }
+    } finally {
+      setActionKey("");
     }
   };
 
   const removeMember = async (shareToken, userId) => {
-    const result = await removeMemberApi(shareToken, userId);
-    if (result.error) {
-      setStatus(result.error);
-      return;
+    setActionKey(`remove-${shareToken}-${userId}`);
+    try {
+      const result = await removeMemberApi(shareToken, userId);
+      if (result.error) {
+        setStatus(result.error);
+        return;
+      }
+      setShares((prev) =>
+        prev.map((share) =>
+          share.token === shareToken
+            ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
+            : share
+        )
+      );
+      flashStatus(setStatus, "Member removed.");
+    } finally {
+      setActionKey("");
     }
-    setShares((prev) =>
-      prev.map((share) =>
-        share.token === shareToken
-          ? { ...share, members: (share.members || []).filter((m) => m.user?.id !== userId) }
-          : share
-      )
-    );
-    flashStatus(setStatus, "Member removed.");
   };
 
   const revokeShare = async (shareToken) => {
-    const result = await revokeShareApi(shareToken);
-    if (result.error) {
-      setStatus(result.error);
-      return;
+    setActionKey(`revoke-${shareToken}`);
+    try {
+      const result = await revokeShareApi(shareToken);
+      if (result.error) {
+        setStatus(result.error);
+        return;
+      }
+      setShares((prev) => prev.filter((share) => share.token !== shareToken));
+      flashStatus(setStatus, "Share deleted.");
+    } finally {
+      setActionKey("");
     }
-    setShares((prev) => prev.filter((share) => share.token !== shareToken));
-    flashStatus(setStatus, "Share link revoked.");
   };
 
   const visibleShares = useMemo(
@@ -144,7 +163,7 @@ export default function ShareControlPanel() {
             <option value="task">Tasks</option>
           </select>
           <button className="button-secondary" onClick={loadShares} disabled={loading}>
-            Refresh
+            {loading ? <><span className="small-spinner" aria-hidden="true" /> Loading</> : "Refresh"}
           </button>
         </div>
       </div>
@@ -163,11 +182,15 @@ export default function ShareControlPanel() {
                 <span className="tag">From {invite.invited_by?.username || "another user"}</span>
               </div>
               <div className="note-card-actions" style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                <button onClick={() => respondToInvite(invite.id, "accept", invite.share?.token)}>
-                  Accept and open
+                <button
+                  onClick={() => respondToInvite(invite.id, "accept", invite.share?.token)}
+                  disabled={Boolean(actionKey)}
+                >
+                  {actionKey === `invite-${invite.id}-accept` && <span className="small-spinner" aria-hidden="true" />}
+                  {actionKey === `invite-${invite.id}-accept` ? " Accepting..." : "Accept and open"}
                 </button>
-                <button className="button-secondary" onClick={() => respondToInvite(invite.id, "decline")}>
-                  Decline
+                <button className="button-secondary" onClick={() => respondToInvite(invite.id, "decline")} disabled={Boolean(actionKey)}>
+                  {actionKey === `invite-${invite.id}-decline` ? "Declining..." : "Decline"}
                 </button>
               </div>
             </div>
@@ -233,8 +256,9 @@ export default function ShareControlPanel() {
                           className="button-secondary"
                           style={{ padding: "2px 6px", fontSize: "0.75rem" }}
                           onClick={() => removeMember(share.token, member.user.id)}
+                          disabled={Boolean(actionKey)}
                         >
-                          Remove
+                          {actionKey === `remove-${share.token}-${member.user.id}` ? "Removing..." : "Remove"}
                         </button>
                       )}
                     </span>
@@ -251,11 +275,11 @@ export default function ShareControlPanel() {
                 </button>
                 {share.is_owner !== false && (
                   <>
-                    <button className="button-secondary" onClick={() => inviteUser(share.token)}>
-                      Add User
+                    <button className="button-secondary" onClick={() => inviteUser(share.token)} disabled={Boolean(actionKey)}>
+                      {actionKey === `invite-user-${share.token}` ? "Sending..." : "Add User"}
                     </button>
-                    <button className="button-danger" onClick={() => revokeShare(share.token)}>
-                      Revoke Link
+                    <button className="button-danger" onClick={() => revokeShare(share.token)} disabled={Boolean(actionKey)}>
+                      {actionKey === `revoke-${share.token}` ? "Deleting..." : "Revoke Link"}
                     </button>
                   </>
                 )}

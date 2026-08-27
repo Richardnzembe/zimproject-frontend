@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import LiveThrottleMessage from "./LiveThrottleMessage";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, authFetch } from "../lib/api";
 import { upsertHistoryItems } from "../db";
 import { CHAT_MODES, MODE_ENDPOINTS } from "../lib/constants";
@@ -85,7 +86,7 @@ const AIStudy = () => {
 
       <button onClick={askAI}>Ask AI</button>
 
-      {status && <p>{status}</p>}
+      {status && <p><LiveThrottleMessage message={status} /></p>}
       {answer && <p>{answer}</p>}
     </div>
   );

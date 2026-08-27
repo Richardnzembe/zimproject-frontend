@@ -10,6 +10,7 @@ import {
   getRefreshToken,
   setTokens,
   clearTokens,
+  authFetch,
 } from "./api";
 
 describe("api utilities", () => {
@@ -158,6 +159,24 @@ describe("api utilities", () => {
       expect(localStorage.getItem("notex_auth_session")).toBeNull();
       expect(getAuthToken()).toBe(false);
       expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    });
+  });
+
+  describe("authFetch activity feedback", () => {
+    it("announces request start and completion", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, status: 200 });
+      const starts = [];
+      const onStart = (event) => starts.push(event.detail?.label);
+      const onEnd = vi.fn();
+      window.addEventListener("app-network-start", onStart);
+      window.addEventListener("app-network-end", onEnd);
+
+      await authFetch(`${getApiBaseUrl()}/api/share/links/example/chat/`, { method: "POST" });
+
+      expect(starts).toEqual(["Thinking..."]);
+      expect(onEnd).toHaveBeenCalledTimes(1);
+      window.removeEventListener("app-network-start", onStart);
+      window.removeEventListener("app-network-end", onEnd);
     });
   });
 });

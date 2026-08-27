@@ -4,6 +4,10 @@ import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuth
 const PIN_STORAGE_KEY = "notex_device_pin_hash";
 const GSI_SCRIPT_URL = "https://accounts.google.com/gsi/client";
 
+const BusyLabel = ({ children }) => (
+  <><span className="small-spinner" aria-hidden="true" /> {children}</>
+);
+
 const hashPin = async (value) => {
   const data = new TextEncoder().encode(value);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -810,7 +814,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   autoComplete="new-password"
                 />
                 <button onClick={handleAuthenticatedPasswordReset} disabled={loading} style={{ width: "100%" }}>
-                  {loading ? "Resetting..." : "Reset password"}
+                  {loading ? <BusyLabel>Resetting...</BusyLabel> : "Reset password"}
                 </button>
               </div>
 
@@ -820,7 +824,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                   Deleting your account is permanent. You will lose access to your data.
                 </p>
                 <button onClick={handleDeleteAccount} disabled={loading} style={{ width: "100%" }}>
-                  {loading ? "Deleting..." : "Delete account"}
+                  {loading ? <BusyLabel>Deleting...</BusyLabel> : "Delete account"}
                 </button>
               </div>
             </div>
@@ -839,7 +843,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
               />
               <div className="auth-actions">
                 <button onClick={handlePasswordResetRequest} disabled={loading}>
-                  {loading ? "Sending..." : "Send reset link"}
+                  {loading ? <BusyLabel>Sending...</BusyLabel> : "Send reset link"}
                 </button>
                 <button
                   className="button-secondary"
@@ -877,7 +881,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
               />
               <div className="auth-actions">
                 <button onClick={handlePasswordResetConfirm} disabled={loading}>
-                  {loading ? "Resetting..." : "Reset password"}
+                  {loading ? <BusyLabel>Resetting...</BusyLabel> : "Reset password"}
                 </button>
                 <button
                   className="button-secondary"
@@ -929,7 +933,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                 {mode === "login" ? (
                   <>
                     <button onClick={handleLogin} disabled={loading}>
-                      {loading ? "Signing in..." : "Sign in"}
+                      {loading ? <BusyLabel>Signing in...</BusyLabel> : "Sign in"}
                     </button>
                     <button
                       className="button-secondary"
@@ -958,7 +962,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
                 ) : (
                   <>
                     <button onClick={handleRegister} disabled={loading}>
-                      {loading ? "Creating..." : "Create account"}
+                      {loading ? <BusyLabel>Creating...</BusyLabel> : "Create account"}
                     </button>
                     <button
                       className="button-secondary"

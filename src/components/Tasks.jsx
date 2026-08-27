@@ -49,6 +49,7 @@ const Tasks = () => {
   const [filter, setFilter] = useState("all");
   const [editingId, setEditingId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [shareStatus, setShareStatus] = useState("");
   const [shareInfoByTask, setShareInfoByTask] = useState({});
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
@@ -424,24 +425,32 @@ const Tasks = () => {
 
     const target = tasks.find((task) => task.local_id === localId);
     if (!target) return;
+    setDeletingId(localId);
+    setStatus("Deleting task...");
+    try {
+      if (target.server_id) {
+        await upsertTasks([
+          {
+            ...target,
+            sync_status: "pending",
+            pending_action: "delete",
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        await deleteLocalTask(localId);
+      }
 
-    if (target.server_id) {
-      await upsertTasks([
-        {
-          ...target,
-          sync_status: "pending",
-          pending_action: "delete",
-          updated_at: new Date().toISOString(),
-        },
-      ]);
-    } else {
-      await deleteLocalTask(localId);
+      const updated = await getTasksByUser(userId);
+      setTasks(sortTasks(updated));
+      setDeleteConfirmId(null);
+      await syncPendingTasks();
+      flashStatus(setStatus, "Task deleted successfully.");
+    } catch {
+      setStatus("Unable to delete the task. Please try again.");
+    } finally {
+      setDeletingId(null);
     }
-
-    const updated = await getTasksByUser(userId);
-    setTasks(sortTasks(updated));
-    setDeleteConfirmId(null);
-    await syncPendingTasks();
   };
 
   useEffect(() => {
@@ -715,12 +724,13 @@ const Tasks = () => {
                           <>
                             <button
                               className="dropdown-item danger"
-                              onClick={() => {
-                                deleteTask(task.local_id);
+                              onClick={async () => {
+                                await deleteTask(task.local_id);
                                 setOpenActionMenuId(null);
                               }}
+                              disabled={deletingId === task.local_id}
                             >
-                              Confirm delete
+                              {deletingId === task.local_id ? <><span className="small-spinner" aria-hidden="true" /> Deleting...</> : "Confirm delete"}
                             </button>
                             <button
                               className="dropdown-item"
