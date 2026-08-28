@@ -7,6 +7,9 @@ import {
   replaceUserNotes,
   upsertNotes,
   deleteLocalNote,
+  deleteNoteDraft,
+  getNoteDraft,
+  saveNoteDraft,
   upsertHistoryItems,
 } from "../db";
 import { SummarizeIcon, ExplainIcon, QuestionIcon } from "../lib/icons";
@@ -24,6 +27,16 @@ const normalizeContentForEditor = (value) => {
 };
 
 const stripHtml = (value) => (value ? value.replace(/<[^>]*>/g, "") : "");
+
+const EMPTY_NOTE_FORM = {
+  title: "",
+  subject: "",
+  category: "Study Notes",
+  tags: "",
+  content: "",
+};
+
+const NOTE_DRAFT_KEY_PREFIX = "notex_note_draft_";
 
 const renderNoteContent = (value) => {
   if (!value) return "";
@@ -48,6 +61,8 @@ const Notes = ({ onOpenAI }) => {
   const [shareInfo, setShareInfo] = useState([]);
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
   const [editorNonce, setEditorNonce] = useState(0);
+  const [draftStatus, setDraftStatus] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const [shareDialog, setShareDialog] = useState({
     open: false,
     permission: "read",
@@ -63,14 +78,9 @@ const Notes = ({ onOpenAI }) => {
   });
   const editorRef = useRef(null);
   const editorContentRef = useRef("");
+  const draftLoadedForRef = useRef(null);
 
-  const [form, setForm] = useState({
-    title: "",
-    subject: "",
-    category: "Study Notes",
-    tags: "",
-    content: "",
-  });
+  const [form, setForm] = useState(EMPTY_NOTE_FORM);
 
 
 
@@ -100,6 +110,36 @@ const Notes = ({ onOpenAI }) => {
     }));
     setNotes(sortNotes(normalized));
     return normalized;
+  }, []);
+
+  const restoreDraft = useCallback(async (userId, localNotes = []) => {
+    if (!userId || draftLoadedForRef.current === userId) return;
+    const storageKey = `${NOTE_DRAFT_KEY_PREFIX}${userId}`;
+    let draft = null;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      draft = stored ? JSON.parse(stored) : null;
+    } catch {
+      localStorage.removeItem(storageKey);
+    }
+    if (!draft) draft = await getNoteDraft(userId);
+    draftLoadedForRef.current = userId;
+
+    const draftForm = draft?.form;
+    const hasDraft = Boolean(
+      draftForm &&
+      (draftForm.title?.trim() || draftForm.subject?.trim() || draftForm.tags?.trim() || stripHtml(draftForm.content || "").trim())
+    );
+    if (!hasDraft) return;
+
+    const restoredEditingId = localNotes.some((note) => note.local_id === draft.editing_id)
+      ? draft.editing_id
+      : null;
+    editorContentRef.current = normalizeContentForEditor(draftForm.content || "");
+    setEditingId(restoredEditingId);
+    setForm({ ...EMPTY_NOTE_FORM, ...draftForm, content: editorContentRef.current });
+    setEditorNonce((value) => value + 1);
+    setDraftStatus(`Recovered unsaved changes from ${new Date(draft.saved_at).toLocaleString()}.`);
   }, []);
 
   const mergeServerNotes = useCallback(async (serverNotes) => {
@@ -439,13 +479,14 @@ const Notes = ({ onOpenAI }) => {
         return;
       }
 
-      await loadLocalNotes();
+      const localNotes = await loadLocalNotes();
+      await restoreDraft(userId, localNotes);
       await loadApiNotes();
       await syncPendingNotes();
     };
 
     initialize();
-  }, [loadLocalNotes, loadApiNotes, syncPendingNotes]);
+  }, [loadLocalNotes, loadApiNotes, restoreDraft, syncPendingNotes]);
 
   useEffect(() => {
     const onAuthChange = async () => {
@@ -457,28 +498,70 @@ const Notes = ({ onOpenAI }) => {
           return;
         }
         setStatus("");
-        await loadLocalNotes();
+        const localNotes = await loadLocalNotes();
+        await restoreDraft(userId, localNotes);
         await loadApiNotes();
         await syncPendingNotes();
       } else {
+        draftLoadedForRef.current = null;
         setNotes([]);
         setStatus("Please login to use notes.");
       }
     };
     window.addEventListener("auth-changed", onAuthChange);
     return () => window.removeEventListener("auth-changed", onAuthChange);
-  }, [loadLocalNotes, loadApiNotes, syncPendingNotes]);
+  }, [loadLocalNotes, loadApiNotes, restoreDraft, syncPendingNotes]);
 
   const syncNotesCb = useCallback(() => syncPendingNotes(), [syncPendingNotes]);
   const loadNotesCb = useCallback(() => loadApiNotes(), [loadApiNotes]);
   useOnlineSync({ syncFn: syncNotesCb, loadFn: loadNotesCb });
 
   useEffect(() => {
-    if (activeNote?.server_id) {
-      fetchShareLinks(activeNote.server_id);
-    } else {
-      setShareInfo([]);
+    const userId = getAuthUserId();
+    if (!userId || draftLoadedForRef.current !== userId) return undefined;
+    const storageKey = `${NOTE_DRAFT_KEY_PREFIX}${userId}`;
+    const hasContent = Boolean(
+      form.title.trim() || form.subject.trim() || form.tags.trim() || stripHtml(form.content).trim()
+    );
+
+    if (!hasContent) {
+      localStorage.removeItem(storageKey);
+      const clearTimer = window.setTimeout(async () => {
+        await deleteNoteDraft(userId);
+        setDraftStatus("");
+      }, 0);
+      return () => window.clearTimeout(clearTimer);
     }
+
+    const draft = {
+      user_id: userId,
+      editing_id: editingId,
+      form,
+      saved_at: new Date().toISOString(),
+    };
+    // Synchronous storage protects the latest keystroke even if the tab or app
+    // is closed before the debounced IndexedDB backup runs.
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+    const statusTimer = window.setTimeout(() => setDraftStatus("Saving draft locally..."), 0);
+    const persistTimer = window.setTimeout(async () => {
+      await saveNoteDraft(draft);
+      setDraftStatus(`Draft saved on this device at ${new Date().toLocaleTimeString()}.`);
+    }, 500);
+    return () => {
+      window.clearTimeout(statusTimer);
+      window.clearTimeout(persistTimer);
+    };
+  }, [editingId, form]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (activeNote?.server_id) {
+        fetchShareLinks(activeNote.server_id);
+      } else {
+        setShareInfo([]);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [activeNote?.server_id]);
 
   useEffect(() => {
@@ -505,6 +588,21 @@ const Notes = ({ onOpenAI }) => {
       ...prev,
       content: editorRef.current.innerHTML,
     }));
+  };
+
+  const applyHighlight = (color) => {
+    if (!color) return;
+    if (!document.execCommand("hiliteColor", false, color)) {
+      document.execCommand("backColor", false, color);
+    }
+    setForm((prev) => ({ ...prev, content: editorRef.current?.innerHTML || prev.content }));
+  };
+
+  const addLink = () => {
+    const url = window.prompt("Paste the link address (https://...)");
+    if (!url) return;
+    const normalizedUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    applyEditorCommand("createLink", normalizedUrl);
   };
 
   const BIDIRECTIONAL_CONTROL_REGEX = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
@@ -551,7 +649,10 @@ const Notes = ({ onOpenAI }) => {
 
   const saveNote = async () => {
     const contentText = stripHtml(form.content).replace(/\u00a0/g, " ").trim();
-    if (!form.title || !contentText) return;
+    if (!form.title.trim() || !contentText) {
+      setStatus("Add a title and some note content before saving.");
+      return;
+    }
 
     const token = getAuthToken();
     const userId = getAuthUserId() || (await ensureAuthUserId());
@@ -560,11 +661,13 @@ const Notes = ({ onOpenAI }) => {
       return;
     }
 
-    const now = new Date().toISOString();
-    const tags = form.tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    setSavingNote(true);
+    try {
+      const now = new Date().toISOString();
+      const tags = form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
     let localNote = null;
     if (editingId) {
@@ -599,21 +702,29 @@ const Notes = ({ onOpenAI }) => {
       };
     }
 
-    await upsertNotes([localNote]);
-    const updated = await getNotesByUser(userId);
-    setNotes(sortNotes(updated));
+      await upsertNotes([localNote]);
+      const updated = await getNotesByUser(userId);
+      setNotes(sortNotes(updated));
 
-    setEditingId(null);
-    setForm({
-      title: "",
-      subject: "",
-      category: "Study Notes",
-      tags: "",
-      content: "",
-    });
-    setEditorNonce((prev) => prev + 1);
+      setEditingId(null);
+      editorContentRef.current = "";
+      setForm(EMPTY_NOTE_FORM);
+      setEditorNonce((prev) => prev + 1);
 
-    await syncPendingNotes();
+      await syncPendingNotes();
+      const persistedNotes = await getNotesByUser(userId);
+      const persistedNote = persistedNotes.find((note) => note.local_id === localNote.local_id);
+      const didSync = persistedNote?.sync_status === "synced";
+      flashStatus(
+        setStatus,
+        didSync ? "Note saved and synced." : "Note saved locally and queued for automatic sync."
+      );
+    } catch (error) {
+      console.error("Failed to save note:", error);
+      setStatus("The note could not be saved. Your editor draft is still protected on this device.");
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const editNote = (note) => {
@@ -866,6 +977,15 @@ const Notes = ({ onOpenAI }) => {
             >
               <span style={{ textDecoration: "underline" }}>U</span>
             </button>
+            <button
+              type="button"
+              className="notes-toolbar-btn"
+              onClick={() => applyEditorCommand("strikeThrough")}
+              aria-label="Strikethrough"
+              title="Strikethrough"
+            >
+              <span style={{ textDecoration: "line-through" }}>S</span>
+            </button>
           </div>
           <div className="notes-editor-group">
             <button
@@ -902,6 +1022,7 @@ const Notes = ({ onOpenAI }) => {
               <option value="h1">Heading 1</option>
               <option value="h2">Heading 2</option>
               <option value="h3">Heading 3</option>
+              <option value="blockquote">Quote</option>
             </select>
             <select
               className="notes-toolbar-select"
@@ -915,7 +1036,44 @@ const Notes = ({ onOpenAI }) => {
               <option value="Georgia">Georgia</option>
               <option value="Times New Roman">Times New Roman</option>
               <option value="Arial">Arial</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Courier New">Courier New</option>
             </select>
+            <select
+              className="notes-toolbar-select notes-toolbar-select-compact"
+              defaultValue="3"
+              onChange={(e) => applyEditorCommand("fontSize", e.target.value)}
+              aria-label="Font size"
+              title="Font size"
+            >
+              <option value="1">Small</option>
+              <option value="2">Compact</option>
+              <option value="3">Normal</option>
+              <option value="4">Large</option>
+              <option value="5">Extra large</option>
+              <option value="6">Display</option>
+            </select>
+          </div>
+          <div className="notes-editor-group">
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("justifyLeft")} title="Align left" aria-label="Align left">Left</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("justifyCenter")} title="Align center" aria-label="Align center">Center</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("justifyRight")} title="Align right" aria-label="Align right">Right</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("outdent")} title="Decrease indent" aria-label="Decrease indent">Outdent</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("indent")} title="Increase indent" aria-label="Increase indent">Indent</button>
+          </div>
+          <div className="notes-editor-group">
+            <label className="notes-color-control" title="Text color">
+              Text
+              <input type="color" defaultValue="#1f2937" onChange={(e) => applyEditorCommand("foreColor", e.target.value)} aria-label="Text color" />
+            </label>
+            <label className="notes-color-control" title="Highlight color">
+              Highlight
+              <input type="color" defaultValue="#fde68a" onChange={(e) => applyHighlight(e.target.value)} aria-label="Highlight color" />
+            </label>
+            <button type="button" className="notes-toolbar-btn" onClick={addLink} title="Add link" aria-label="Add link">Link</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("unlink")} title="Remove link" aria-label="Remove link">Unlink</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("undo")} title="Undo" aria-label="Undo">Undo</button>
+            <button type="button" className="notes-toolbar-btn" onClick={() => applyEditorCommand("redo")} title="Redo" aria-label="Redo">Redo</button>
             <button
               type="button"
               className="notes-toolbar-btn"
@@ -933,36 +1091,46 @@ const Notes = ({ onOpenAI }) => {
           ref={editorRef}
           className="notes-editor"
           contentEditable
+          spellCheck
+          lang="en"
+          autoCorrect="on"
+          autoCapitalize="sentences"
           role="textbox"
           aria-multiline="true"
           dir="ltr"
           style={{ direction: "ltr", unicodeBidi: "isolate", textAlign: "left" }}
           data-placeholder="Write your note content here..."
           onInput={handleEditorInput}
+          onKeyDown={(event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+              event.preventDefault();
+              saveNote();
+            }
+          }}
           suppressContentEditableWarning
         />
 
+        <p className="notes-editor-help">
+          Drafts save automatically. Use Ctrl/Cmd+S to save, and right-click underlined words for browser spelling suggestions.
+        </p>
+
         <div className="notes-form-actions">
-          <button onClick={saveNote}>
-            {editingId ? "Update Note" : "Save Note"}
+          <button onClick={saveNote} disabled={savingNote}>
+            {savingNote ? <><span className="small-spinner" aria-hidden="true" /> Saving...</> : editingId ? "Update Note" : "Save Note"}
           </button>
+          <span className="notes-draft-status" role="status" aria-live="polite">{draftStatus}</span>
           
           {editingId && (
             <button 
               className="button-secondary"
               onClick={() => {
                 setEditingId(null);
-                setForm({
-                  title: "",
-                  subject: "",
-                  category: "Study Notes",
-                  tags: "",
-                  content: "",
-                });
+                editorContentRef.current = "";
+                setForm(EMPTY_NOTE_FORM);
                 setEditorNonce((prev) => prev + 1);
               }}
             >
-              Cancel
+              Cancel & discard changes
             </button>
           )}
           

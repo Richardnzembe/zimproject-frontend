@@ -1,7 +1,7 @@
 import { openDB } from "idb";
 
 const DB_NAME = "smart-notes-db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const initDB = async () => {
   const db = await openDB(DB_NAME, DB_VERSION, {
@@ -30,6 +30,11 @@ export const initDB = async () => {
         const store = db.createObjectStore("ai_history", { keyPath: "local_id" });
         store.createIndex("user_id", "user_id");
         store.createIndex("created_at", "created_at");
+      }
+
+      if (!db.objectStoreNames.contains("note_drafts")) {
+        const store = db.createObjectStore("note_drafts", { keyPath: "user_id" });
+        store.createIndex("saved_at", "saved_at");
       }
     },
   });
@@ -78,6 +83,21 @@ export const upsertNotes = async (notes) => {
 export const deleteLocalNote = async (localId) => {
   const db = await initDB();
   await db.delete("notes", localId);
+};
+
+export const saveNoteDraft = async (draft) => {
+  const db = await initDB();
+  await db.put("note_drafts", draft);
+};
+
+export const getNoteDraft = async (userId) => {
+  const db = await initDB();
+  return await db.get("note_drafts", userId);
+};
+
+export const deleteNoteDraft = async (userId) => {
+  const db = await initDB();
+  await db.delete("note_drafts", userId);
 };
 
 export const getNoteByServerId = async (serverId) => {

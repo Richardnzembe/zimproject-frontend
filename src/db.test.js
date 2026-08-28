@@ -8,6 +8,9 @@ import {
   replaceUserNotes,
   upsertNotes,
   deleteLocalNote,
+  deleteNoteDraft,
+  getNoteDraft,
+  saveNoteDraft,
   getNoteByServerId,
   getNoteByClientId,
   getHistoryByUser,
@@ -23,7 +26,7 @@ import {
 describe("db (IndexedDB via idb)", () => {
   beforeEach(async () => {
     const db = await initDB();
-    const stores = ["projects", "notes", "tasks", "ai_history"];
+    const stores = ["projects", "notes", "tasks", "ai_history", "note_drafts"];
     for (const store of stores) {
       const tx = db.transaction(store, "readwrite");
       await tx.store.clear();
@@ -44,6 +47,23 @@ describe("db (IndexedDB via idb)", () => {
       expect(db.objectStoreNames.contains("notes")).toBe(true);
       expect(db.objectStoreNames.contains("tasks")).toBe(true);
       expect(db.objectStoreNames.contains("ai_history")).toBe(true);
+      expect(db.objectStoreNames.contains("note_drafts")).toBe(true);
+    });
+  });
+
+  describe("note draft recovery", () => {
+    it("saves, restores, and deletes an unsaved per-user draft", async () => {
+      const draft = {
+        user_id: 7,
+        editing_id: null,
+        form: { title: "Recovered", content: "Never lose this" },
+        saved_at: new Date().toISOString(),
+      };
+
+      await saveNoteDraft(draft);
+      await expect(getNoteDraft(7)).resolves.toEqual(draft);
+      await deleteNoteDraft(7);
+      await expect(getNoteDraft(7)).resolves.toBeUndefined();
     });
   });
 
