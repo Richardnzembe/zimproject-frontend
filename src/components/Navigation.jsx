@@ -55,6 +55,7 @@ export default function Navigation({ activeView, onViewChange }) {
     { id: "ai", label: "NotesAI", primary: true },
     { id: "shares", label: "Shares" },
     { id: "notifications", label: "Notifications" },
+    { id: "help", label: "Troubleshooting" },
     { id: "account", label: "Account" },
   ];
 

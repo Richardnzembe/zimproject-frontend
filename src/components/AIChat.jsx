@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, getUserOpenRouterModel, ensureAuthUserId, authFetch, clearTokens } from "../lib/api";
 import { getHistoryByUser, upsertHistoryItems, deleteHistoryItems, replaceUserHistory } from "../db";
@@ -440,6 +441,9 @@ export default function AIChat({ onNavigate }) {
   const AI_REQUEST_TIMEOUT_MS = 45000;
 
   const formatAiError = (status, data, err) => {
+    if (!navigator.onLine) {
+      return "No internet connection. Check your connection and retry your message.";
+    }
     if (err?.name === "AbortError") {
       return "The request timed out. The server may be waking up — please try again in a moment.";
     }
@@ -517,6 +521,10 @@ export default function AIChat({ onNavigate }) {
     };
 
     try {
+      if (!navigator.onLine) {
+        addErrorMessage("No internet connection. Check your connection and retry your message.", true);
+        return;
+      }
       const session = chatSessions.find((s) => s.id === currentSessionId);
       if (session?.items?.length) {
         const itemsToMigrate = session.items.filter(
@@ -608,21 +616,6 @@ export default function AIChat({ onNavigate }) {
         }
       } else if (!data) {
         addErrorMessage("Received an empty response from the server. Please try again.", true);
-        const errorMessage = formatAiError(res.status, data);
-        if (data?.request_message) {
-          setModelStatus(data.request_message);
-        }
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + "-error",
-            role: "assistant",
-            isError: true,
-            failedInput: messageToSend,
-            content: errorMessage,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
       } else {
         if (data?.request_message) {
           setModelStatus(data.request_message);
@@ -670,27 +663,10 @@ export default function AIChat({ onNavigate }) {
       }
     } catch (err) {
       console.error(err);
-      const isNetworkError = !navigator.onLine || err?.message === "Failed to fetch";
-      if (isNetworkError) {
-        addErrorMessage("You appear to be offline. Check your connection and try again.", true);
-      } else {
-        addErrorMessage("Something went wrong. Please try again.", true);
-      }
-      const errorMessage = formatAiError(null, null, err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString() + "-error",
-          role: "assistant",
-          isError: true,
-          failedInput: messageToSend,
-          content: errorMessage,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      addErrorMessage(formatAiError(null, null, err), true);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const retryLastMessage = (failedInput) => {
@@ -1139,9 +1115,6 @@ export default function AIChat({ onNavigate }) {
               <div key={message.id} className={`ai-message ${message.role}${message.isError ? " ai-message-error" : ""}`}>
                 <div className="ai-message-inner">
                   <div className={`ai-message-avatar${message.isError ? " error" : ""}`}>
-                    {message.isError ? (
-                      <AlertIcon />
-                    ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" width="16" height="16">
                         {message.role === "user" ? (
                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -1164,7 +1137,6 @@ export default function AIChat({ onNavigate }) {
                           </>
                         )}
                       </svg>
-                    )}
                   </div>
                   <div className="ai-message-body">
                     <div className="ai-message-name">
@@ -1181,9 +1153,10 @@ export default function AIChat({ onNavigate }) {
                     </div>
                     {message.role === "assistant" && message.isError && (
                       <div className="ai-message-actions" style={{ opacity: 1 }}>
+                        <HelpLink topic="ai" />
                         {message.retryable && (
                           <button onClick={retryLastMessage} className="ai-retry-button" disabled={loading || throttleRemaining > 0}>
-                            <RetryIcon /> {message.isThrottle && throttleRemaining > 0 ? `Wait ${throttleRemaining}s` : "Retry"}
+                            <span aria-hidden="true">&#8635;</span> {message.isThrottle && throttleRemaining > 0 ? `Wait ${throttleRemaining}s` : "Retry"}
                           </button>
                         )}
                         {message.isError && message.failedInput && (

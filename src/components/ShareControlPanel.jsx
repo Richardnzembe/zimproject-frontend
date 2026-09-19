@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useEffect, useMemo, useState } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken } from "../lib/api";
 import { safeJson, flashStatus, buildShareUrl } from "../lib/utils";
@@ -168,7 +169,7 @@ export default function ShareControlPanel() {
         </div>
       </div>
 
-      {status && <p className="status-message info">{status}</p>}
+      {status && <p className="status-message info">{status} <HelpLink topic={/user.*not found|username/i.test(status) ? "username" : /login/i.test(status) ? "login" : "sharing"} /></p>}
 
       {invites.length > 0 && (
         <div className="notes-list" style={{ marginBottom: "20px" }}>

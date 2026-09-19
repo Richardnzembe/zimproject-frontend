@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useEffect, useState, useCallback } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId } from "../lib/api";
 import {
@@ -542,8 +543,8 @@ const Tasks = () => {
         )}
       </div>
 
-      {status && <p className="status-message info">{status}</p>}
-      {shareStatus && <p className="status-message info">{shareStatus}</p>}
+      {status && <p className="status-message info">{status} <HelpLink topic="data" /></p>}
+      {shareStatus && <p className="status-message info">{shareStatus} <HelpLink topic="sharing" /></p>}
 
       <div className="search-filter-container">
         <input

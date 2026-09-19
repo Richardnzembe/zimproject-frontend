@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useEffect, useState, useCallback } from "react";
 import { getApiBaseUrl, getAuthToken, getAuthUserId, ensureAuthUserId, authFetch } from "../lib/api";
 import { normalizeOrderedListNumbering, renderMessageContent } from "../lib/chatFormatting";
@@ -265,7 +266,7 @@ const AIHistory = () => {
             </button>
           </div>
 
-          {status && <p className="status-message info">{status}</p>}
+          {status && <p className="status-message info">{status} <HelpLink topic="data" /></p>}
 
           <Charts 
             history={history} 

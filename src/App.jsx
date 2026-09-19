@@ -13,9 +13,27 @@ import NotificationsPage from "./components/NotificationsPage";
 import CookieBanner from "./components/CookieBanner";
 import { initializeAuth, getAuthToken } from "./lib/api";
 import "./styles.css";
+import Troubleshooting from "./components/Troubleshooting";
 import OpeningAnimation from "./components/OpeningAnimation";
 
 function App() {
+  const helpReturnFocusRef = useRef(null);
+  const [helpTopic, setHelpTopic] = useState(() => window.location.hash.startsWith("#help/") ? window.location.hash.slice(6) || "overview" : null);
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash.startsWith("#help/") && !document.activeElement?.closest(".troubleshooting-page")) {
+        helpReturnFocusRef.current = document.activeElement;
+      }
+      setHelpTopic(window.location.hash.startsWith("#help/") ? window.location.hash.slice(6) || "overview" : null);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+  const closeHelp = () => {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    setHelpTopic(null);
+    window.requestAnimationFrame(() => helpReturnFocusRef.current?.focus());
+  };
   const [activeView, setActiveView] = useState("home");
   const [accountOptionsTrigger, setAccountOptionsTrigger] = useState(0);
   const [_authToken, setAuthToken] = useState(getAuthToken());
@@ -110,6 +128,10 @@ function App() {
   }, []);
 
   const handleNavigate = (view, options = {}) => {
+    if (view === "help") {
+      window.location.hash = "help/overview";
+      return;
+    }
     setActiveView(view);
     if (view === "account" && options.openAccountOptions) {
       setAccountOptionsTrigger((prev) => prev + 1);
@@ -129,6 +151,8 @@ function App() {
         <span className="global-activity-spinner" aria-hidden="true" />
         <span>{networkActivity.label}</span>
       </div>
+      {helpTopic !== null && <Troubleshooting topic={helpTopic} onClose={closeHelp} />}
+      <div hidden={helpTopic !== null}>
       {activeView === "ai" ? (
         <Suspense fallback={<div className="loading">Loading AI chat…</div>}>
           <AIChat onNavigate={handleNavigate} />
@@ -190,6 +214,7 @@ function App() {
           </main>
         </>
       )}
+      </div>
       <CookieBanner />
     </div>
   );

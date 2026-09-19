@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { authFetch, getApiBaseUrl, getAuthToken, getAuthUserId } from "../lib/api";
 import { renderMessageContent } from "../lib/chatFormatting";
@@ -236,7 +237,7 @@ export default function SharedAccess({ token, onNavigate }) {
   if (error) {
     return (
       <div className="panel-card" style={{ marginTop: "32px" }}>
-        <p><LiveThrottleMessage message={error} /></p>
+        <p><LiveThrottleMessage message={error} /> <HelpLink topic={error.includes("login") ? "login" : "sharing"} /></p>
         {error.includes("login") && (
           <button className="button-secondary" onClick={() => onNavigate("account")}>
             Login

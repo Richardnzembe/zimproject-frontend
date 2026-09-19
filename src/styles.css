@@ -1,5 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap');
 
+.troubleshooting-page { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; color: var(--text-primary); }
+.troubleshooting-header { margin: 28px 0; }
+.troubleshooting-header h1 { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3rem); margin: 8px 0 16px; }
+.troubleshooting-header p, .troubleshooting-section p, .troubleshooting-footer { color: var(--text-secondary); line-height: 1.7; }
+.troubleshooting-eyebrow { font-weight: 700; }
+.troubleshooting-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
+.troubleshooting-topics a { padding: 14px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--surface-color); }
+.troubleshooting-topics a, .troubleshooting-link { color: var(--primary-color); text-decoration: underline; text-underline-offset: 3px; }
+.troubleshooting-link { display: inline-block; margin-inline-start: 8px; font-weight: 600; }
+.troubleshooting-topics a:hover, .troubleshooting-link:hover { color: var(--primary-hover); }
+.troubleshooting-sections { display: grid; gap: 18px; }
+.troubleshooting-section h2 { font-size: 1.25rem; scroll-margin-top: 24px; }
+.troubleshooting-section ol { padding-inline-start: 24px; }
+.troubleshooting-section li { padding-inline-start: 6px; margin: 12px 0; line-height: 1.75; }
+.troubleshooting-footer { margin-top: 28px; }
+@media (max-width: 540px) {
+  .troubleshooting-page { padding: 20px 14px 40px; }
+  .troubleshooting-topics { grid-template-columns: 1fr; }
+}
+
 /* ===== CSS Variables for Clean Professional Theme ===== */
 :root {
   --primary-color: #0f766e;

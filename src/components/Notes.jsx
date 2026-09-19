@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from "react";
 import DOMPurify from "dompurify";
 const ImageToText = lazy(() => import("./ImageToText"));
@@ -887,7 +888,7 @@ const Notes = ({ onOpenAI }) => {
         </div>
       </div>
 
-      {status && <p className="status-message info">{status}</p>}
+      {status && <p className="status-message info">{status} <HelpLink topic="data" /></p>}
 
       <div className="search-filter-container">
         <input
@@ -1377,7 +1378,7 @@ const Notes = ({ onOpenAI }) => {
             <div className="notes-reading-content">
               {shareStatus && (
                 <div className="notes-reading-status">
-                  {shareStatus}
+                  {shareStatus} <HelpLink topic="sharing" />
                 </div>
               )}
               {currentMembers.length > 0 && (
@@ -1525,7 +1526,7 @@ const Notes = ({ onOpenAI }) => {
                 </>
               )}
               {shareDialog.status && (
-                <p className="notes-share-status">{shareDialog.status}</p>
+                <p className="notes-share-status">{shareDialog.status} <HelpLink topic="sharing" /></p>
               )}
             </div>
 

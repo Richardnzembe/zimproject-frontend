@@ -1,3 +1,4 @@
+import HelpLink from "./HelpLink";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getApiBaseUrl, getAuthToken, setTokens, clearTokens, authFetch, getAuthUserId } from "../lib/api";
 
@@ -999,6 +1000,7 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
           style={{ marginTop: "16px" }}
         >
           {status || pinStatus}
+          {statusType === "error" && <HelpLink topic="login" />}
         </p>
       )}
     </div>
