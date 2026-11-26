@@ -49,18 +49,39 @@ const loadGsiScript = () => {
   if (gsiLoadPromise) return gsiLoadPromise;
   gsiLoadPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${GSI_SCRIPT_URL}"]`);
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", reject, { once: true });
-      return;
+    const script = existing || document.createElement("script");
+    let timeoutId;
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      script.removeEventListener("load", onLoad);
+      script.removeEventListener("error", onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      if (window.google?.accounts?.id) resolve();
+      else reject(new Error("Google sign-in loaded without its identity API."));
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("The Google sign-in script could not be loaded."));
+    };
+    script.addEventListener("load", onLoad, { once: true });
+    script.addEventListener("error", onError, { once: true });
+    timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Google sign-in is taking too long to load."));
+    }, 15000);
+    if (!existing) {
+      script.src = GSI_SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
     }
-    const script = document.createElement("script");
-    script.src = GSI_SCRIPT_URL;
-    script.async = true;
-    script.defer = true;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
+  }).catch((error) => {
+    gsiLoadPromise = null;
+    const failedScript = document.querySelector(`script[src="${GSI_SCRIPT_URL}"]`);
+    if (failedScript && !window.google?.accounts?.id) failedScript.remove();
+    throw error;
   });
   return gsiLoadPromise;
 };
@@ -94,6 +115,10 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   const [keyConfigured, setKeyConfigured] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [profileId, setProfileId] = useState(null);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const [googleRetryCount, setGoogleRetryCount] = useState(0);
 
   const envGoogleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
   const [googleClientId, setGoogleClientId] = useState(envGoogleClientId);
@@ -157,6 +182,8 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   useEffect(() => {
     if (envGoogleClientId || googleClientId) return;
     let isActive = true;
+    setGoogleLoading(true);
+    setGoogleError("");
     const loadGoogleConfig = async () => {
       try {
         const res = await fetch(`${getApiBaseUrl()}/api/auth/google/config/`, {
@@ -165,18 +192,25 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         });
         const data = await safeJson(res);
         const clientId = (data?.clientId || data?.client_id || "").trim();
-        if (res.ok && clientId && isActive) {
+        if (!res.ok) throw new Error(`Google sign-in configuration failed (${res.status}).`);
+        if (!clientId) throw new Error("Google sign-in is not configured for this site.");
+        if (isActive) {
           setGoogleClientId(clientId);
         }
-      } catch {
-        // Best effort: keep Google disabled if config cannot be loaded.
+      } catch (error) {
+        if (isActive) {
+          console.error("Google sign-in configuration failed:", error);
+          setGoogleError(error.message || "Google sign-in is not available right now.");
+        }
+      } finally {
+        if (isActive) setGoogleLoading(false);
       }
     };
     loadGoogleConfig();
     return () => {
       isActive = false;
     };
-  }, [envGoogleClientId, googleClientId]);
+  }, [envGoogleClientId, googleClientId, googleRetryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -254,16 +288,19 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
   }, [token]);
 
   useEffect(() => {
-    if (token) return;
-    if (!googleClientId) return;
-    if (resetStep) return;
+    if (token || !googleClientId || resetStep) return;
 
     let cancelled = false;
+    setGoogleReady(false);
+    setGoogleLoading(true);
+    setGoogleError("");
 
     const renderButton = () => {
       const container = googleButtonRef.current;
       const google = window.google;
-      if (!container || !google?.accounts?.id) return;
+      if (!container || !google?.accounts?.id) {
+        throw new Error("Google sign-in could not be initialized.");
+      }
 
       if (googleInitializedForRef.current !== googleClientId) {
         google.accounts.id.initialize({
@@ -288,22 +325,36 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
         click_listener: () => {
           setStatus("");
           setStatusType("");
+          setStatus("Continue in the Google sign-in window to finish signing in.");
+          setStatusType("success");
         },
       });
+      setGoogleReady(true);
+      setGoogleLoading(false);
     };
 
     loadGsiScript()
       .then(() => {
-        if (!cancelled) renderButton();
+        if (cancelled) return;
+        try {
+          renderButton();
+        } catch (error) {
+          console.error("Google sign-in initialization failed:", error);
+          setGoogleError("Google sign-in could not be initialized. Please try again.");
+          setGoogleLoading(false);
+        }
       })
-      .catch(() => {
-        // Google SDK failed to load; keep button hidden.
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Google sign-in failed to load:", error);
+        setGoogleError("Google sign-in could not load. Check your connection and try again.");
+        setGoogleLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [googleClientId, handleGoogleCredential, mode, resetStep, token]);
+  }, [googleClientId, googleRetryCount, handleGoogleCredential, mode, resetStep, token]);
 
   const handleLogin = async () => {
     const safeUsername = username.trim();
@@ -981,14 +1032,21 @@ const AuthPanel = ({ accountOptionsTrigger = 0 }) => {
               </div>
               <div className="auth-divider">or</div>
               <div className="auth-google" aria-label="Continue with Google">
-                {googleClientId ? (
-                  <div ref={googleButtonRef} />
-                ) : (
+                {googleClientId && <div ref={googleButtonRef} hidden={!googleReady} />}
+                {!googleReady && (
                   <button className="button-secondary" type="button" disabled>
-                    Continue with Google
+                    {googleLoading ? <BusyLabel>Loading Google sign-in...</BusyLabel> : "Continue with Google"}
                   </button>
                 )}
               </div>
+              {googleError && (
+                <div className="google-signin-feedback" role="status">
+                  <span>{googleError}</span>
+                  <button type="button" className="button-ghost" onClick={() => setGoogleRetryCount((count) => count + 1)} disabled={googleLoading}>
+                    Try again
+                  </button>
+                </div>
+              )}
             </>
           )}
         </>
